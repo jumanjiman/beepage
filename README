@@ -49,8 +49,8 @@ Installing beepage:
     NIS master's maps and push them.
 
 4.  Sample config files for beepaged are in the SAMPLE directory, e.g.
-    SAMPLE/beepage.users.  Install your own versions of these files in
-    ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/beepage.users.  See
+    SAMPLE/users.  Install your own versions of these files in
+    ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/users.  See
     beepaged's man page for a description of it's configuration files.
 
 You might be interested in looking at the RSUG home page at
