@@ -1,0 +1,22 @@
+Please use this format when reporting bugs to interpage@umich.edu.
+Assuming that you've not supplied a fix, our goal will be to reproduce
+your problem, here.  If we are missing information necessary to do
+that, we may need to ask you to provide it, thus lengthening the
+turn-around time for a fix.
+
+Subject: Short summary of the problem (please make this meaningful!)
+
+Environment:
+	The version of interpage you're running ("tp -V" or "tppd -V"),
+	any changes you've made to the configuration, e.g. Kerberos,
+	what machine you're running interpage on, and the version of
+	the operating system.
+
+Description:
+	Detailed description of the problem, suggestion, or complaint.
+
+Repeat-By:
+	The sequence of events that causes the problem to occur.
+
+Fix:
+	Description of how to fix the problem.
