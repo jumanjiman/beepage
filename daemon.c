@@ -104,7 +104,7 @@ main( ac, av )
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
-    int			c, s, err = 0, fd, sinlen;
+    int			c, s, err = 0, fd, sinlen, trueint;
     int			dontrun = 0;
     int			restart = 0;
     int			pidfd;
@@ -245,6 +245,13 @@ main( ac, av )
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = INADDR_ANY;
     sin.sin_port = port;
+
+    trueint = 1;
+    if ( setsockopt( s, SOL_SOCKET, SO_REUSEADDR, (void*) &trueint, 
+	    sizeof(int)) < 0 ) {
+	perror("setsockopt");
+    }
+
     if ( bind( s, (struct sockaddr *)&sin, sizeof( struct sockaddr_in )) < 0 ) {
 	perror( "bind" );
 	exit( 1 );
@@ -309,7 +316,7 @@ main( ac, av )
 #ifdef ultrix
     openlog( prog, LOG_NOWAIT|LOG_PID );
 #else ultrix
-    openlog( prog, LOG_NOWAIT|LOG_PID, LOG_TPPD );
+    openlog( prog, LOG_NOWAIT|LOG_PID, LOG_BEEPAGED );
 #endif ultrix
 
     if (( pf = fdopen( pidfd, "w" )) == NULL ) {
