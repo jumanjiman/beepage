@@ -18,24 +18,24 @@ PIDFILE=${ETCDIR}/pid
 BEEPAGEDSYSLOG=LOG_LOCAL6
 
 # Stock compiler:
-#CC=	cc
+CC=	cc
 
 # For gcc:
-CC=	gcc
+#CC=	gcc
 # These options might work on your system:
-OPTOPTS=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Werror
+#OPTOPTS=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Werror
 
 # For most platforms:
-#INSTALL=	install
+INSTALL=	install
 
 # For Solaris:
-INSTALL=	/usr/ucb/install
-ADDLIBS=	-lsocket -lnsl
+#INSTALL=	/usr/ucb/install
+#ADDLIBS=	-lsocket -lnsl
 
 # To enable Kerberos v4, uncomment these lines.
-KDEFS=	-DKRB
-KSRC=	binhex.c
-KOBJ=	binhex.o
+#KDEFS=	-DKRB
+#KSRC=	binhex.c
+#KOBJ=	binhex.o
 
 # For MIT Kerberos v4
 #KERBEROS=	/usr/local/kerberos
@@ -44,8 +44,8 @@ KOBJ=	binhex.o
 #KLIBS=	-lkrb -ldes
 
 # For Solaris Kerberos v4
-KINCPATH=	-I/usr/include/kerberos
-KLIBS=	-lkrb
+#KINCPATH=	-I/usr/include/kerberos
+#KLIBS=	-lkrb
 
 ################ Nothing below should need editing ###################
 
