@@ -3,7 +3,7 @@
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#define U_MUSTAUTH	(1<<0)
+#define U_KERBEROS	(1<<0)
 #define U_SENDMAIL	(1<<1)
 
 struct srvdb {
