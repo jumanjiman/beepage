@@ -653,10 +653,12 @@ queue_check( osachld, osahup )
 			syslog( LOG_ERR, "chdir: %s: %m", s->s_name );
 			exit( 1 );
 		    }
+#ifndef NOMODEM
 		    if ( modem_connect( modem, s ) < 0 ) {
 			syslog( LOG_ERR, "modem_connect: %s: %m", s->s_name );
 			exit( 1 );
 		    }
+#endif NOMODEM
 		    for (;;) {
 			cnt = 0;
 			if (( dirp = opendir( "." )) == NULL ) {
@@ -680,6 +682,7 @@ queue_check( osachld, osahup )
 				exit( 1 );
 			    }
 
+#ifndef NOMODEM
 			    switch ( rc = modem_send( modem, u->u_pin,
 				    page->p_message, u->u_service->s_maxlen )) {
 			    case -1 :	/* retry */
@@ -715,6 +718,11 @@ queue_check( osachld, osahup )
 				subject = "page failed";
 				break;
 			    }
+#endif NOMODEM
+
+#ifdef NOMODEM
+			    printf( "%s\n", page->p_message );
+#endif NOMODEM
 
 			    /*
 			     * There are two subjects, each of which
@@ -747,11 +755,13 @@ queue_check( osachld, osahup )
 			    break;
 			}
 		    }
+#ifndef NOMODEM
 		    if ( modem_disconnect( modem ) < 0 ) {
 			syslog( LOG_ERR, "modem_disconnect: %s: %m",
 				s->s_name );
 			exit( 1 );
 		    }
+#endif NOMODEM
 		    exit( 0 );
 
 		case -1 :

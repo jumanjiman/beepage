@@ -47,6 +47,9 @@ ADDLIBS=	-lsocket -lnsl
 KINCPATH=	-I/usr/include/kerberos
 KLIBS=	-lkrb
 
+# For debugging, skip modem code
+#DMODEM=	-DNOMODEM
+
 ################ Nothing below should need editing ###################
 
 SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c \
@@ -56,7 +59,7 @@ DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
 COBJ=	beep.o ${KOBJ}
 
 INCPATH=	-Ilibnet ${KINCPATH}
-DEFS=	-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS}
+DEFS=	-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS} ${DMODEM}
 CFLAGS=	${DEFS} ${OPTOPTS} ${INCPATH}
 TAGSFILE=	tags
 LIBPATH=	-Llibnet ${KLIBPATH}
