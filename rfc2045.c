@@ -40,7 +40,7 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
 	addlen = strlen( n_line );
 	if (( newline = (char *)malloc( *len + addlen ) ) == NULL ) {
 	    syslog( LOG_ERR, "parse_content-type: malloc: %m" );
-	    return( -1 );
+	    return( -2 );
 	}
 	strcpy( newline, *line );
 	strcat( newline, n_line );
