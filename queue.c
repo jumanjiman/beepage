@@ -567,7 +567,7 @@ queue_read( file )
 	free( subj );
     } else {
         page_compress( page, &offset, &state, from, TAP_MAXLEN );
-        page_compress( page, &offset, &state, ":", TAP_MAXLEN );
+        page_compress( page, &offset, &state, ": ", TAP_MAXLEN );
     }
     free( from );
     once = 0;
