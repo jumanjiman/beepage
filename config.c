@@ -154,8 +154,8 @@ usrdb_flags( f )
 
     for ( ; *f; f++ ) {
 	switch ( *f ) {
-	case 'A' :
-	    flags |= U_MUSTAUTH;
+	case 'K' :
+	    flags |= U_KERBEROS;
 	    break;
 
 	case 'M' :
