@@ -5,12 +5,15 @@
 
 #include <sys/time.h>
 #include <sys/param.h>
+#include <sys/types.h>
 #include <netdb.h>
 #include <string.h>
 #include <syslog.h>
 #include <signal.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <netinet/in.h>
 
 #include <net.h>
 
@@ -21,6 +24,8 @@
 #include "binhex.h"
 #include "queue.h"
 #include "command.h"
+#include "rfc822.h"
+#include "config.h"
 
 struct pqueue	*pq = NULL;
 
@@ -102,7 +107,7 @@ f_auth( net, ac, av )
 	    return( 1 );
 	}
 
-	if (( pq = queue_init( ad.pname, Q_KERBEROS )) == NULL ) {
+	if (( pq = queue_init( ad.pname, Q_KERBEROS, net )) == NULL ) {
 	    net_writef( net, "%d User %s not permitted\r\n", 411, ad.pname );
 	    return( 1 );
 	}
@@ -111,7 +116,7 @@ f_auth( net, ac, av )
     } else
 #endif KRB
     if ( strcasecmp( "NONE", av[ 1 ] ) == 0 ) {
-	if (( pq = queue_init( av[ 2 ], 0 )) == NULL ) {
+	if (( pq = queue_init( av[ 2 ], 0, net )) == NULL ) {
 	    net_writef( net, "%d User %s not permitted\r\n", 414, av[ 2 ] );
 	    return( 1 );
 	}
@@ -166,8 +171,14 @@ f_data( net, ac, av )
     int		ac;
     char	*av[];
 {
-    char	*line;
-    int		lenerr = 0;
+    char		*line;
+    int			dot =0;
+    struct datalines    *d_head = NULL;
+    struct datalines    *d_tail = NULL;
+    int                 keyheaders = 0;
+    int                 linecount = 0;
+    extern char		*maildomain;
+    struct quser	*q;
 
     if ( ac != 1 ) {
 	net_writef( net, "%d Syntax error\r\n", 530 );
@@ -187,18 +198,94 @@ f_data( net, ac, av )
     while (( line = net_getline( net, NULL )) != NULL ) {
 	if ( *line == '.' ) {
 	    if ( strcmp( line, "." ) == 0 ) {
+	    	dot = 1;
 		break;
 	    }
 	    line++;
 	}
-
-	if ( queue_line( pq, line ) < 0 ) {
-	    lenerr = 1;
+        if ( ++linecount <= 200 ) {
+	    if ( dl_append( line, &d_head, &d_tail ) < 0 ) {
+		net_writef( net, "%d Queue Failed\r\n", 533 );
+		return( 1 );
+	    }
+	    if ( *line == '\0' ) {
+		dot = 0;
+		break;
+	    }
+	    /* Look at the line I just saw. Is it a header? */
+	    if ( parse_header( line, &keyheaders ) < 0 ) {
+		if ( dl_prepend( "", &d_head ) < 0 ) {
+		    return( -1 );
+		}
+		break;
+	    }
+	} else {
+	/* lets assume this is mail */
+	    if ( d_head != NULL ) {
+		dl_output( d_head, pq );
+		/* queue_line the newline between headers and body */
+		queue_line( pq, line );
+		dl_free( &d_head );
+	    } else {
+		queue_line( pq, line );
+	    }
 	}
     }
-    if ( line == NULL ) {	/* EOF */
-	queue_cleanup( pq );
-	return( -1 );
+    if ( line == NULL ) {       /* EOF */
+        queue_cleanup( pq );
+        return( -1 );
+    }
+
+    if ( linecount < 200 ) {
+	/* Do I have a From:,  To: and Subject: ? */
+	if ( ! ( keyheaders & IH_FROM ) ) {
+	    if ( maildomain != NULL ) {
+		queue_printf( pq, "From: %s@%s\n", pq->q_sender, maildomain );
+	    } else {
+		queue_printf( pq, "From: %s\n", pq->q_sender );
+	    }
+	} 
+
+	if ( ! ( keyheaders & IH_TO )  ) {
+	    if ( maildomain != NULL ) {
+		queue_printf( pq, "To: %s@%s", pq->q_users->qu_user->u_name, 
+				    maildomain );
+		for ( q = pq->q_users->qu_next; q != NULL; q = q->qu_next ) {
+		    queue_printf( pq, ", %s@%s", q->qu_user->u_name, 
+					maildomain );
+		}
+	    } else {
+		queue_printf( pq, "To: %s", pq->q_users->qu_user->u_name );
+		for ( q = pq->q_users->qu_next; q != NULL; q = q->qu_next ) {
+		    queue_printf( pq, ", %s", q->qu_user->u_name );
+		}
+	    }
+	    queue_printf( pq, "\n" );
+	}
+
+	if ( ! (keyheaders & IH_SUBJ ) ) {
+	    queue_line( pq, "Subject: page sent" );
+	}
+	    
+	dl_output( d_head, pq );
+	dl_free( &d_head );
+    }
+
+    /* if i'm "not done" getting data yet, queue the rest */
+    if ( dot == 0 ) {
+        while (( line = net_getline( net, NULL )) != NULL ) {
+            if ( *line == '.' ) {
+                if ( strcmp( line, "." ) == 0 ) {
+                    break;
+                }
+                line++;
+            }
+            queue_line( pq, line );
+        }
+	if ( line == NULL ) {       /* EOF */
+	    queue_cleanup( pq );
+	    return( -1 );
+	}
     }
 
     if ( queue_done( pq ) < 0 ) {
@@ -206,11 +293,7 @@ f_data( net, ac, av )
 	return( 1 );
     }
 
-    if ( lenerr ) {
-	net_writef( net, "%d Page is too long, will be truncated\r\n", 231 );
-    } else {
-	net_writef( net, "%d Page queued\r\n", 230 );
-    }
+    net_writef( net, "%d Page queued\r\n", 230 );
     return( 0 );
 }
 
