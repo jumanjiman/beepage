@@ -93,6 +93,7 @@ modem_disconnect( modem )
 {
     struct timeval	tv;
     char		*resp;
+    int			i;
 
     if ( net_writef( modem->m_net, "\r" ) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
@@ -118,6 +119,47 @@ modem_disconnect( modem )
 	    continue;
 	}
 	break;
+    }
+
+    for ( i = 0; i < 3; i++ ) {
+	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
+	if ( net_writef( modem->m_net, "+++" ) < 0 ) {
+	    syslog( LOG_ERR, "net_writef: %m" );
+	    return( -1 );
+	}
+
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "net_getline: reset: %m" );
+	    continue;
+	}
+	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
+	if ( strcmp( resp, "OK" ) == 0 ) {
+	    break;
+	}
+    }
+
+    /* LLL */ syslog( LOG_DEBUG, ">>> ATH" );
+    if ( net_writef( modem->m_net, "ATH\r" ) < 0 ) {
+	syslog( LOG_ERR, "net_writef: %m" );
+	return( -1 );
+    }
+
+    for ( i = 0; i < 3; i++ ) {
+	tv.tv_sec = 30;
+	tv.tv_usec = 0;
+	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "net_getline: hangup: %m" );
+	    return( -1 );
+	}
+	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
+	if ( strcmp( resp, "OK" ) == 0 ) {
+	    break;
+	}
+    }
+    if ( i == 3 ) {
+	syslog( LOG_ERR, "modem hangup failed" );
     }
 
     if ( net_close( modem->m_net ) < 0 ) {
@@ -182,8 +224,27 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
-    /* LLL */ syslog( LOG_DEBUG, ">>> ATM0E0" );
-    if ( net_writef( modem->m_net, "ATM0E0\r" ) < 0 ) {
+    for ( i = 0; i < 2; i++ ) {
+	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
+	if ( net_writef( modem->m_net, "+++" ) < 0 ) {
+	    syslog( LOG_ERR, "net_writef: %m" );
+	    return( -1 );
+	}
+
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "net_getline: reset: %m" );
+	    continue;
+	}
+	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
+	if ( strcmp( resp, "OK" ) == 0 ) {
+	    break;
+	}
+    }
+
+    /* LLL */ syslog( LOG_DEBUG, ">>> ATHM0E0" );
+    if ( net_writef( modem->m_net, "ATHM0E0\r" ) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
