@@ -162,8 +162,8 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
-    /* LLL */ syslog( LOG_DEBUG, ">>> ATE0&D3" );
-    if ( net_writef( modem->m_net, "ATE0&D3\r" ) < 0 ) {
+    /* LLL */ syslog( LOG_DEBUG, ">>> ATM0E0&D3" );
+    if ( net_writef( modem->m_net, "ATM0E0&D3\r" ) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
