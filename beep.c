@@ -127,41 +127,46 @@ main( ac, av )
     }
     strcpy( hostname, hp->h_name );
 
-    if (( s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ) {
-	perror( "socket" );
-	exit( EX_TEMPFAIL );
-    }
-
     memset( &sin, 0, sizeof( struct sockaddr_in ));
     sin.sin_family = AF_INET;
     sin.sin_port = port;
     for ( i = 0; hp->h_addr_list[ i ] != NULL; i++ ) {
+	if (( s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ) {
+	    perror( "socket" );
+	    exit( EX_TEMPFAIL );
+	}
 	/* address in sin, for later */
 	memcpy( &sin.sin_addr.s_addr, hp->h_addr_list[ i ],
 		(unsigned)hp->h_length );
 	if ( connect( s, (struct sockaddr *)&sin,
-		sizeof( struct sockaddr_in )) == 0 ) {
+		sizeof( struct sockaddr_in )) < 0 ) {
+
+	    perror( inet_ntoa( *(struct in_addr *)hp->h_addr_list[ i ] ) );
+	    close( s );
+	    continue;
+	}
+
+	if (( net = net_attach( s, 1024 * 1024 )) == NULL ) {
+	    perror( "net_attach" );
+	    exit( EX_OSERR );
+	}
+
+	if (( line = net_getline( net, NULL )) == NULL ) {
+	    perror( "net_getline" );
+	    exit( EX_IOERR );
+	}
+	if ( verbose )	printf( "<<< %s\n", line );
+	if ( *line != '2' ) {
+	    if ( ! quiet )	fprintf( stderr, "%s\n", line );
+	    close( s );
+	    continue;
+	} else {
 	    break;
 	}
-	perror( inet_ntoa( *(struct in_addr *)hp->h_addr_list[ i ] ) );
     }
+
     if ( hp->h_addr_list[ i ] == NULL ) {
 	exit( EX_TEMPFAIL );
-    }
-
-    if (( net = net_attach( s, 1024 * 1024 )) == NULL ) {
-	perror( "net_attach" );
-	exit( EX_OSERR );
-    }
-
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	perror( "net_getline" );
-	exit( EX_IOERR );
-    }
-    if ( verbose )	printf( "<<< %s\n", line );
-    if ( *line != '2' ) {
-	fprintf( stderr, "%s\n", line );
-	exit( EX_PROTOCOL );
     }
 
 #ifdef KRB
@@ -199,7 +204,6 @@ main( ac, av )
 	fprintf( stderr, "%s\n", line );
     }
 #endif KRB
-
     if (( pw = getpwuid( getuid())) == NULL ) {
 	fprintf( stderr, "%s: who are you?\n", prog );
 	exit( EX_CONFIG );
