@@ -35,6 +35,7 @@ struct page {
 #define ___P(x)		()
 #endif __STDC__
 
+int		queue_count ___P(( void ));
 void		queue_printf ___P(( struct pqueue *, char *, ... ));
 struct pqueue	*queue_init ___P(( char *, int, NET * ));
 void		queue_check ___P(( struct sigaction *, struct sigaction * ));
