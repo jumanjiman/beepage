@@ -1,0 +1,68 @@
+This is the README file for interpage, a Unix, Internet-aware
+implementation of TAP.
+
+Contents:
+	    o A Brief Description
+	    o BUILDING & INSTALLING
+	    o Getting Help
+
+The interpage package includes two programs: tppd, the "Text Page
+Protocol" daemon which accepts pages on a well-known TCP port and
+transmits them over one or more modems to a TAP (aka PET, IXA)
+paging-service provider; and tp, a command-line TPP client.
+
+tppd has been tested on the following systems:
+
+	OS	Versions
+	--	--------
+	Solaris	2.6
+	Linux	RedHat 5.x
+	OpenBSD	2.3
+	SunOS	4.1.4
+
+Building interpage:
+
+1.  Set DESTDIR in the root Makefile.  DESTDIR is the directory below
+    which all binaries will be installed.  Setting it causes all
+    installation-relative pathnames to be set correctly.  Each of
+    MANDIR, SBINDIR, BINDIR, and ETCDIR, can also be set separately to
+    control the locations of the various installed files.
+
+2.  Review OS and installation specific options.  TPPDSYSLOG can be set
+    to the syslog facility where you'd like tppd to log.  There are
+    specific options to support Solaris.  There are several options to
+    enable Kerberos 4 support, and additional options to select the
+    flavor of Kerberos 4 installed on your machine.
+
+2.  When you've completed the configuration, type "make" at the root of
+    the source.  This will make all binaries.
+
+Installing interpage:
+
+1.  The tppd binary is installed setgid "tpp".  This group must exist.
+
+2.  To install the binaries, type "make install" at the root of the
+    source tree.  This will install all of the binaries.
+
+3.  Add the contents of services.tpp to your /etc/services database.
+    If you're using NIS (YP), add the contents of services.tpp to the
+    NIS master's maps and push them.
+
+4.  Sample config files for tppd are in the SAMPLE directory, e.g.
+    SAMPLE/tppd.users.  Install your own versions of these files in
+    ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/tppd.users.  See
+    tppd's man page for a description of it's configuration file.
+
+You might be interested in looking at the RSUG home page at
+http://www.umich.edu/~rsug/.
+
+You may report bugs and get help by sending mail to the developers at
+interpage@umich.edu.  If you're reporting bugs, you MUST use the format
+provided in the BUGS file!  We will do our best to help you.
+
+Research Systems Unix Group
+The University of Michigan		interpage@umich.edu
+c/o Wesley Craig			+1-734-764-2278
+535 W. William St.
+Ann Arbor, Michigan
+48103-4943
