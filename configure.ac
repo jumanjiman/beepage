@@ -19,8 +19,6 @@ AC_CHECK_LIB([nsl], [inet_ntoa])
 AC_CHECK_LIB([socket], [socket])
 #AC_CHECK_LIB([krb], [gssapi])
 
-CHECK_SNET
-
 # Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
