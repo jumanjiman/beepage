@@ -1,0 +1,168 @@
+.TH TPPD "8" "Sept98" "RSUG"
+.SH NAME 
+.B tppd
+\-  text pager protocol daemon
+.SH SYNOPSIS
+.B tppd 
+[
+.B -r
+] [
+.B -M
+.I maildomain
+] [
+.B -p
+.I port
+]
+.RI /dev/ modem-tty
+\&.\|.\|.
+.br
+.SH DESCRIPTION
+On startup
+.B tppd
+checks
+.B :ETCDIR:/tppd.services
+and
+.B :ETCDIR:/tppd.users
+for syntax errors, changes directory to
+.B /var/spool/tppd
+and begins listening on the ``tpp'' port (by default 6661) for incoming
+connections.  If there are pages waiting to be delivered,
+.B tppd
+forks a child for each service-queue until there are no more modems
+available.  As page-delivery children terminate, freeing modems for
+re-use, the next pending queue is serviced.  A separate child is also
+forked for each network connection.
+.LP
+The file
+.B :ETCDIR:/tppd.services
+contains the list of paging-service providers, one per line.  Each line
+contains the symbolic service name, the phone number, and an optional
+maximum length.  The service name must exist as a directory in the
+.B tppd
+spool area,
+.BI /var/spool/tppd/ service .
+Lines beginning with ``#'' are ignored.
+.LP
+The file
+.B :ETCDIR:/tppd.users
+contains a list of users, one per line.  Each line contains a user
+name, flags, the corresponding paging-service provider and PIN.  The
+paging-service provider must be listed in
+.BR :ETCDIR:/tppd.services .
+Valid flags are ``M'' send email confirmation, ``K'' require Kerberos
+authentication, and ``-'' nothing, a place-holder.  Lines beginning
+with ``#'' are ignored.
+.SH OPTIONS
+.TP 20
+.B \-V
+displays the version of
+.B tppd
+and exits.
+.TP 20
+.B \-r
+checks for syntax errors in
+.B :ETCDIR:/tppd.services
+and
+.BR :ETCDIR:/tppd.users ,
+and restarts the currently running
+.BR tppd .
+.TP 20
+.BI \-M\  maildomain
+specifies the domain for email confirmation, e.g.
+.IR user@maildomain .
+By default no mail domain is used.
+.TP 20
+.BI \-p\  port
+specifies the port
+.B tppd
+listens on, by default 6661.
+.TP 20
+.BI \-b\  backlog
+defines the maximum queue of pending connections to
+.BR listen (2),
+by default 5.
+.SH EXAMPLES
+The following example of
+.B :ETCDIR:/tppd.services
+defines two service providers, pagenet and ameritech.  pagenet has a smaller
+than default maximum page length.
+.sp
+.RS
+.nf
+        #
+        # service       phone           maxlen
+        #
+        pagenet         1-800-955-7243  245
+        ameritech       1-800-734-3503
+.fi
+.RE
+.LP
+This example
+.BR :ETCDIR:/tppd.users
+defines three users.  Those wishing to page ann must first authenticate
+with Kerberos.  Both ann and bob receive email confirmation when they
+are sent pages.  Note that carol has the flag ``-''.  This flag is
+necessary, since carol has no other flags.
+.sp
+.RS
+.nf
+        #
+        # User  Flags   Service         PIN
+        #
+        ann     KM      ameritech       1234567  
+        bob     M       pagenet         54321
+        carol   -       ameritech       0011223
+.fi
+.RE
+.LP
+The following example starts
+.B tppd
+on a typical Linux machine.  Users that receive email confirmation of
+pages are addressed as
+.IB user @example.org .
+.sp
+.RS
+.nf
+	tppd -M example.org /dev/ttyS0
+.fi
+.RE
+.SH PROTOCOL
+The Text Page Protocol (TPP) is a very simple protocol for queuing
+pages from users over the network.  The current revision, 1.0, uses the
+following verbs:
+.TP
+.B AUTH \fItype credentials
+Authenticate using method
+.IR type ,
+with the following
+.IR credentials .
+Currently,
+.B NONE
+and
+.B KRB4
+are valid
+.IR type s.
+The
+.I credential
+for
+.B NONE
+is simply the sending user's name.  The
+.I credential
+for
+.B KRB4
+is a hexidecimal encoded Kerberos authenticator.
+.TP
+.B PAGE \fIuser
+Specify the recipient of the page.  This command may be repeated.
+.TP
+.B DATA
+After the server responds with a go-ahead, enter the text of the page,
+terminating the page with a ``.'' on a line by itself.
+.TP
+.B QUIT
+Terminate the session.
+.LP
+Responses are similar to SMTP.
+.SH SEE ALSO
+.BR tp (1),
+.BR http://www.pcia.com.
