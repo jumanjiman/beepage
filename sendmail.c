@@ -68,6 +68,7 @@ sendmail( to, from, subject, file )
 	}
 	sendmailargv[ 3 ] = tobuf;
 	execv( _PATH_SENDMAIL, sendmailargv );
+	syslog( LOG_ERR, "%s: %m", _PATH_SENDMAIL );
 	exit( 1 );
 
     default :
