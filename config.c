@@ -1,21 +1,29 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <net.h>
 
 #include "config.h"
 #include "modem.h"
+#include "command.h"
 
 struct srvdb	*srvdb = NULL;
 struct usrdb	*usrdb = NULL;
 
 static struct srvdb	*s_next = NULL;
+
+void			srvdb_free ___P(( void ));
+void			usrdb_free ___P(( void ));
+int			usrdb_flags ___P(( char * ));
 
     struct srvdb *
 srvdb_next()
@@ -28,6 +36,7 @@ srvdb_next()
     return( s_next );
 }
 
+    void
 srvdb_free()
 {
     struct srvdb	*s, *t;
@@ -42,9 +51,10 @@ srvdb_free()
     }
 
     srvdb = s_next = NULL;
-    return( 0 );
+    return;
 }
 
+    int
 srvdb_read( path )
     char	*path;
 {
@@ -57,7 +67,8 @@ srvdb_read( path )
 	srvdb_free();
     }
 
-    if (( net = net_open( path, O_RDONLY, 0 )) == NULL ) {
+    if (( net = net_open( path, O_RDONLY, 0, 0 )) == NULL ) {
+	perror( path );
 	return( -1 );
     }
 
@@ -107,12 +118,12 @@ srvdb_read( path )
 	srvdb = s;
     }
 
-    /* check for net_error */
-    return( 0 );
+    return( net_close( net ));
 }
 
+    void
 srvdb_checkin( pid )
-    uid_t		pid;
+    pid_t		pid;
 {
     struct srvdb	*s;
 
@@ -125,9 +136,10 @@ srvdb_checkin( pid )
     return;
 }
 
+    void
 srvdb_checkout( s, pid )
     struct srvdb	*s;
-    uid_t		pid;
+    pid_t		pid;
 {
     s->s_pid = pid;
     return;
@@ -147,6 +159,7 @@ srvdb_find( service )
     return( s );
 }
 
+    int
 usrdb_flags( f )
     char	*f;
 {
@@ -186,6 +199,7 @@ usrdb_find( name )
     return( u );
 }
 
+    void
 usrdb_free()
 {
     struct usrdb	*u, *t;
@@ -200,13 +214,14 @@ usrdb_free()
     }
 
     usrdb = NULL;
-    return( 0 );
+    return;
 }
 
 /*
  * File format is
  *	name flags service pin
  */
+    int
 usrdb_read( path )
     char	*path;
 {
@@ -221,7 +236,7 @@ usrdb_read( path )
 	usrdb_free();
     }
 
-    if (( net = net_open( path, O_RDONLY, 0 )) == NULL ) {
+    if (( net = net_open( path, O_RDONLY, 0, 0 )) == NULL ) {
 	perror( path );
 	return( -1 );
     }
@@ -276,5 +291,5 @@ usrdb_read( path )
     }
 
     /* check for net_error */
-    return( 0 );
+    return( net_close( net ));
 }
