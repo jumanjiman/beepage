@@ -4,6 +4,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -225,8 +226,9 @@ cmdloop( fd )
     NET			*net;
     int			ac, i, mask;
     char		**av, *line;
+    struct timeval	tv;
 
-    if (( net = net_attach( fd  )) == NULL ) {
+    if (( net = net_attach( fd, 1024 * 1024 )) == NULL ) {
 	syslog( LOG_ERR, "net_attach: %m" );
 	exit( 1 );
     }
@@ -237,7 +239,9 @@ cmdloop( fd )
     }
     net_writef( net, "%d TPP 1 %s TAP network interface\r\n", 200, hostname );
 
-    while (( line = net_getline( net, NULL )) != NULL ) {
+    tv.tv_sec = 60 * 10;	/* 10 minutes */
+    while (( line = net_getline( net, &tv )) != NULL ) {
+	tv.tv_sec = 60 * 10;
 	if (( ac = argcargv( line, &av )) < 0 ) {
 	    syslog( LOG_ERR, "argcargv: %m" );
 	    return( 1 );
