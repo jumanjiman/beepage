@@ -3,7 +3,13 @@
  * All Rights Reserved.  See COPYRIGHT.
  */
 
+#include <ctype.h>
+
+#include "binhex.h"
+
 char		hextab[] = "0123456789ABCDEF";
+
+    int
 bin2hex( bin, hex, len )
     char	*bin;
     char	*hex;
@@ -44,10 +50,12 @@ hex2bin( hex, bin )
     len /= 2;
 
     for ( i = 0; i < len; i++ ) {
-	if ( !isxdigit( hex[ i * 2 ] ) || !isxdigit( hex[ i * 2 + 1 ] )) {
+	if ( !isxdigit( (unsigned int)hex[ i * 2 ] ) ||
+		!isxdigit( (unsigned int)hex[ i * 2 + 1 ] )) {
 	    return( -1 );
 	}
-	bin[ i ] = bintab[ hex[ i * 2 ]] << 4 | bintab[ hex[ i * 2 + 1 ]];
+	bin[ i ] = bintab[ (unsigned int)hex[ i * 2 ]] << 4 |
+		bintab[ (unsigned int)hex[ i * 2 + 1 ]];
     }
     return( len );
 }
