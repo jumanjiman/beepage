@@ -465,7 +465,7 @@ queue_read( file )
     char		*a, *b, *line, *at, *from, *subj;
     char		*type, *subtype, *attribute, *value, *boundary;
     NET			*net;
-    int 		offset, state, once;
+    int 		offset, state;
     int 		mime = 0;
     int			mailerr = 0;
     int			done = 0;
@@ -531,7 +531,7 @@ queue_read( file )
         page_compress( page, &offset, &state, ":", TAP_MAXLEN );
 
         page_compress( page, &offset, &state, subj, TAP_MAXLEN );
-        page_compress( page, &offset, &state, ":", TAP_MAXLEN );
+        page_compress( page, &offset, &state, ": ", TAP_MAXLEN );
 
 	free( subj );
     } else {
@@ -539,7 +539,6 @@ queue_read( file )
         page_compress( page, &offset, &state, ": ", TAP_MAXLEN );
     }
     free( from );
-    once = 0;
 
     /* Before compressing to send, check if we are unable to display this 
      * MIME type on a text pager, or if we have a multipart message where
@@ -550,14 +549,6 @@ queue_read( file )
          ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
 
 	while ( ( line = net_getline( net, NULL )) != NULL ) {
-	    if ( once != 0 ) {
-		if ( page_compress( page, &offset, &state, " ", 
-						TAP_MAXLEN ) < 0 ) {
-		    break;
-		}
-	    } else {
-		once = 1;
-	    }
 	    if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0) {
 		break;
 	    }
@@ -581,10 +572,6 @@ queue_read( file )
 	/* find the boundaries */
 	while ( ( line = net_getline( net, NULL )) != NULL ) {
 
-	    if ( done ) {
-		break;
-	    }
-
 	    if ( ( strncmp( line, "--", 2 ) == 0 ) && 
 		 ( strncmp( boundary, line+2, strlen( boundary ) ) == 0 ) ) {
 
@@ -604,51 +591,27 @@ queue_read( file )
 		   ( ( strcasecmp( type, "text" ) == 0 ) && 
 		     ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
 
-		    /* this is the part we want. */
-		    /* it may be a good idea to move this and the above routine
-		     * for calling page_compress into it's own function.  That 
-		     * eliminate the need for the done part to break an embedded
-		     * loop. But I wouldn't want to over-engineer or anything...
-		     */
 		    while ( ( line = net_getline( net, NULL )) != NULL ) {
 			if ( strncmp( line, "--", 2 ) == 0 ) {
 			    if ( strncmp( boundary, line+2, strlen(boundary) ) 
 									== 0) {
 				/* the end */
-				done = 1;
-				break;
+				goto theend;
 			    }
-			}
-			if ( once != 0 ) {
-			    if ( page_compress( page, &offset, &state, " ",
-							    TAP_MAXLEN ) < 0 ) {
-				done = 1;
-				break;
-			    }
-			} else {
-			    once = 1;
 			}
 			if ( page_compress( page, &offset, &state, line, 
 							    TAP_MAXLEN ) < 0) {
-			    done = 1;
-			    break;
+			    goto theend;
 			}
 		    }
 		}
 	    }
 	}
-	if ( !done ) {
-	    mailerr++;
-	}
-    } else {
-        mailerr++;
     }
+    page_compress( page, &offset, &state, 
+	    "Unreadable message. Please check your email", TAP_MAXLEN );
 
-    if ( mailerr ) {
-	page_compress( page, &offset, &state, 
-		"Unreadable message. Please check your email", TAP_MAXLEN );
-    }
-
+    theend:
     net_close( net );
     return( page );
 }
