@@ -1,28 +1,39 @@
-SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c tp.c
-DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o
-COBJ=	tp.o
+SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c tp.c \
+	${KSRC}
+DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
+	${KOBJ}
+COBJ=	tp.o ${KOBJ}
 
-DESTDIR=
+DESTDIR=/usr/local
 
-INCPATH =	-I../libnet
-DEFS=	-DLOG_TPPD=LOG_LOCAL6
+#KERBEROS=	/usr/local/kerberos
+#KINCPATH=	-I${KERBEROS}/include
+#KLIBPATH=	-L${KERBEROS}/lib
+#KLIBS=	-lkrb -ldes
+#KDEFS=	-DKRB
+#KSRC=	binhex.c
+#KOBJ=	binhex.o
+
+INCPATH=	-I../libnet ${KINCPATH}
+DEFS=	-DLOG_TPPD=LOG_LOCAL6 ${KDEFS}
 CFLAGS=	${DEFS} ${OPTOPTS} ${INCPATH}
 TAGSFILE=	tags
-LIBDIRS=	-L../libnet
-LIBS=	${ADDLIBS} -lnet
+LIBPATH=	-L../libnet ${KLIBPATH}
+LIBS=	${ADDLIBS} -lnet ${KLIBS}
 CC=	cc
 INSTALL=	install
 
 all : tppd tp
 
-tp : ${COBJ}
-	${CC} ${CFLAGS} ${LDFLAGS} -o tp ${COBJ} ${LIBDIRS} ${LIBS}
+tp : ${COBJ} Makefile
+	${CC} ${CFLAGS} ${LDFLAGS} -o tp ${COBJ} ${LIBPATH} ${LIBS}
 
-tppd : ${DOBJ}
-	${CC} ${CFLAGS} ${LDFLAGS} -o tppd ${DOBJ} ${LIBDIRS} ${LIBS}
+tppd : ${DOBJ} Makefile
+	${CC} ${CFLAGS} ${LDFLAGS} -o tppd ${DOBJ} ${LIBPATH} ${LIBS}
 
 install : all
-	${INSTALL} -c msapd ${DESTDIR}/etc
+	${INSTALL} -c tppd ${DESTDIR}/etc
+	${INSTALL} -c tp ${DESTDIR}/bin
 
 clean :
 	rm -f a.out core* *.o *.bak *[Ee]rrs tags
