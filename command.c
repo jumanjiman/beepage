@@ -120,8 +120,6 @@ f_page( net, ac, av )
     int		ac;
     char	*av[];
 {
-    struct usrdb	*u;
-
     if ( ac != 2 ) {
 	net_writef( net, "%d Must specify a recipient\r\n", 520 );
 	return( 1 );
@@ -240,8 +238,10 @@ cmdloop( fd )
     net_writef( net, "%d TPP 1 %s TAP network interface\r\n", 200, hostname );
 
     tv.tv_sec = 60 * 10;	/* 10 minutes */
+    tv.tv_usec = 60 * 10;
     while (( line = net_getline( net, &tv )) != NULL ) {
 	tv.tv_sec = 60 * 10;
+	tv.tv_usec = 60 * 10;
 	if (( ac = argcargv( line, &av )) < 0 ) {
 	    syslog( LOG_ERR, "argcargv: %m" );
 	    return( 1 );
