@@ -37,9 +37,7 @@ queue_init( sender )
 	return( NULL );
     }
     strcpy( q->q_sender, sender );
-
     q->q_users = NULL;
-    /* XXX more inits */
 
     return( q );
 }
@@ -63,6 +61,10 @@ queue_recipient( q, user )
     }
 
     qu->qu_user = u;
+    qu->qu_seq = 0;
+    qu->qu_len = TAP_OVERHEAD + strlen( u->u_pin ) +
+	    strlen( q->q_sender ) + 1;			/* 1 is the ':' */
+    qu->qu_fp = NULL;
     qu->qu_next = q->q_users;
     q->q_users = qu;
 
@@ -155,6 +157,16 @@ queue_line( q, line )
 
     for ( qu = q->q_users; qu != NULL; qu = qu->qu_next ) {
 	fprintf( qu->qu_fp, "%s\n", line );
+	/*
+	 * Maybe a better strategy would be to accept a page of any length,
+	 * and truncate it to an appropriate length on the send.  This way,
+	 * the client doesn't have to be careful when sending, and the page
+	 * will arrive via email anyway.
+	 */
+	qu->qu_len += strlen( line ) + 1;
+	if ( qu->qu_len > TAP_MAXLEN ) {	/* XXX should be per-user? */
+	    return( -1 );
+	}
     }
     return( 0 );
 }
@@ -201,8 +213,8 @@ queue_done( q )
 	    syslog( LOG_ERR, "rename %s to %s: %m", b1, b2 );
 	    return( -1 );
 	}
-	syslog( LOG_INFO, "page from %s to %s queued", q->q_sender,
-		qu->qu_user->u_name );
+	syslog( LOG_INFO, "queued %s/P%d from %s to %s",
+		service, qu->qu_seq, q->q_sender, qu->qu_user->u_name );
     }
 
     return( 0 );
@@ -210,13 +222,14 @@ queue_done( q )
 
 queue_check()
 {
+    struct sigaction	sa;
     struct modem	*modem;
     struct srvdb	*first, *s;
     DIR			*dirp;
     struct dirent	*dp;
     struct usrdb	*u;
     char		from[ 256 ], to[ 256 ], mess[ 256 ];
-    int			pid, cnt;
+    int			pid, cnt, rc;
 
     while (( modem = modem_find()) != NULL ) {
 	s = first = srvdb_next();
@@ -241,6 +254,22 @@ queue_check()
 	    if ( dp != NULL ) {
 		switch ( pid = fork()) {
 		case 0 :
+		    /* default SIGCHLD handler */
+		    bzero( &sa, sizeof( struct sigaction ));
+		    sa.sa_handler = SIG_DFL;
+		    if ( sigaction( SIGCHLD, &sa, 0 ) < 0 ) {
+			syslog( LOG_ERR, "sigaction: %m" );
+			exit( 1 );
+		    }
+
+		    /* catch SIGHUP */
+		    bzero( &sa, sizeof( struct sigaction ));
+		    sa.sa_handler = SIG_DFL;
+		    if ( sigaction( SIGHUP, &sa, 0 ) < 0 ) {
+			syslog( LOG_ERR, "sigaction: %m" );
+			exit( 1 );
+		    }
+
 		    /* read spool and send */
 		    if ( chdir( s->s_name ) < 0 ) {
 			syslog( LOG_ERR, "chdir: %s: %m", s->s_name );
@@ -271,16 +300,34 @@ queue_check()
 				exit( 1 );
 			    }
 
-			    if ( modem_send( modem, u->u_pin, mess ) < 0 ) {
-				syslog( LOG_ERR, "modem_send: failed" );
+			    switch ( rc = modem_send( modem, u->u_pin, mess )) {
+			    case -1 :	/* retry */
+				syslog( LOG_ERR, "retry %s/%s from %s to %s",
+					s->s_name, dp->d_name, from, to );
 				exit( 1 );
+
+			    case 0 :	/* OK */
+				syslog( LOG_INFO, "sent %s/%s from %s to %s",
+					s->s_name, dp->d_name, from, to );
+				break;
+
+			    default :	/* invalid, dump it */
+				syslog( LOG_ERR, "invalid %s/%s from %s to %s",
+					s->s_name, dp->d_name, from, to );
+				break;
 			    }
-			    syslog( LOG_INFO, "page from %s to %s sent",
-				    from, to );
 			    if ( unlink( dp->d_name ) < 0 ) {
 				syslog( LOG_ERR, "unlink: %s: %m", dp->d_name );
 				exit( 1 );
 			    }
+
+			    /*
+			     * XXX
+			     * There are two sendmail types, each of which
+			     * may be sent to the originator and receiver.
+			     * Select the message type above, send to everyone
+			     * here.
+			     */
 			    if ( u->u_flags & U_SENDMAIL &&
 				    sendmail( from, to, mess ) < 0 ) {
 				syslog( LOG_ERR, "sendmail: failed" );
