@@ -180,17 +180,16 @@ f_data( net, ac, av )
 	return( -1 );
     }
 
-    if ( lenerr ) {
-	net_writef( net, "%d Page is too long, will be truncated\r\n", 231 );
-	return( 1 );
-    }
-
     if ( queue_done( pq ) < 0 ) {
 	net_writef( net, "%d Can't queue message\r\n", 534 );
 	return( 1 );
     }
 
-    net_writef( net, "%d Page queued\r\n", 230 );
+    if ( lenerr ) {
+	net_writef( net, "%d Page is too long, will be truncated\r\n", 231 );
+    } else {
+	net_writef( net, "%d Page queued\r\n", 230 );
+    }
     return( 0 );
 }
 
