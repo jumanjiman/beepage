@@ -354,6 +354,7 @@ cmdloop( fd, max_queue_size )
 	    return( 0 );
 	}
     }
+    syslog( LOG_INFO, "Queue size: %d pages queued", queue_count() );
 
     net_writef( net, "%d TPP 1 %s %s TAP network interface\r\n", 200,
 	    hostname, version );
