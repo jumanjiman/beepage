@@ -26,8 +26,9 @@ struct page {
 };
 
     struct queue *
-queue_init( sender )
+queue_init( sender, flags )
     char		*sender;
+    int			flags;
 {
     struct queue	*q;
 
@@ -37,18 +38,25 @@ queue_init( sender )
 	syslog( LOG_ERR, "malloc: %m" );
 	return( NULL );
     }
-
     if (( q->q_sender = (char *)malloc( strlen( sender ) + 1 )) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
 	free( q );
 	return( NULL );
     }
     strcpy( q->q_sender, sender );
+    q->q_flags = flags;
     q->q_users = NULL;
 
     return( q );
 }
 
+/*
+ * Error codes:
+ *	0	ok
+ *	-1	unknown
+ *	1	user unknown
+ *	2	kerberos
+ */
 queue_recipient( q, user )
     struct queue	*q;
     char		*user;
@@ -59,7 +67,10 @@ queue_recipient( q, user )
     /* XXX check deny list */
 
     if (( u = usrdb_find( user )) == NULL ) {
-	return( -1 );
+	return( 1 );
+    }
+    if (( u->u_flags & U_KERBEROS ) && ( q->q_flags & Q_KERBEROS ) == 0 ) {
+	return( 2 );
     }
 
     if (( qu = (struct quser *)malloc( sizeof( struct quser ))) == NULL ) {

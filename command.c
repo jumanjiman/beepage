@@ -69,7 +69,6 @@ f_auth( net, ac, av )
     char	instance[ INST_SZ ];
     int		rc;
 #endif KRB
-    char	*user;
 
     if ( ac != 3 ) {
 	net_writef( net, "%d AUTH syntax error\r\n", 510 );
@@ -80,8 +79,8 @@ f_auth( net, ac, av )
 	return( 1 );
     }
 
-    if ( strcasecmp( "KRB4", av[ 1 ] ) == 0 ) {
 #ifdef KRB
+    if ( strcasecmp( "KRB4", av[ 1 ] ) == 0 ) {
 	if (( auth.length = hex2bin( av[ 2 ], auth.dat )) < 0 ) {
 	    net_writef( net, "%d AUTH KRB4 authenticator corrupt\r\n", 413 );
 	    return( 1 );
@@ -93,26 +92,26 @@ f_auth( net, ac, av )
 		    krb_err_txt[ rc ] );
 	    return( 1 );
 	}
-	user = ad.pname;
-#else KRB
-	net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
-	return( 1 );
+
+	if (( pq = queue_init( ad.pname, Q_KERBEROS )) == NULL ) {
+	    net_writef( net, "%d User %s not permitted\r\n", 411, ad.pname );
+	    return( 1 );
+	}
+	net_writef( net, "%d AUTH KRB4 as %s succeeds\r\n", 211, ad.pname );
+	return( 0 );
+    } else
 #endif KRB
-
-    } else if ( strcasecmp( "NONE", av[ 1 ] ) == 0 ) {
-	user = av[ 2 ];
-    } else {
-	net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
-	return( 1 );
+    if ( strcasecmp( "NONE", av[ 1 ] ) == 0 ) {
+	if (( pq = queue_init( av[ 2 ], 0 )) == NULL ) {
+	    net_writef( net, "%d User %s not permitted\r\n", 414, av[ 2 ] );
+	    return( 1 );
+	}
+	net_writef( net, "%d AUTH NONE as %s succeeds\r\n", 210, av[ 2 ] );
+	return( 0 );
     }
 
-    if (( pq = queue_init( user )) == NULL ) {
-	net_writef( net, "%d User %s not permitted\r\n", 411, user );
-	return( 1 );
-    }
-
-    net_writef( net, "%d AUTH as %s succeeds\r\n", 210, user );
-    return( 0 );
+    net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
+    return( 1 );
 }
 
 f_page( net, ac, av )
@@ -131,13 +130,26 @@ f_page( net, ac, av )
 	return( 1 );
     }
 
-    if ( queue_recipient( pq, av[ 1 ] ) < 0 ) {
-	net_writef( net, "%d Can't page %s\r\n", 420, av[ 1 ] );
+    switch ( queue_recipient( pq, av[ 1 ] )) {
+    case 1 :
+	net_writef( net, "%d User %s unknown\r\n", 421, av[ 1 ] );
+	return( 1 );
+
+#ifdef KRB
+    case 2 :
+	net_writef( net, "%d User %s requires Kerberos authentication\r\n",
+		422, av[ 1 ] );
+	return( 1 );
+#endif KRB
+
+    case 0 :
+	net_writef( net, "%d User %s ok\r\n", 220, av[ 1 ] );
+	return( 0 );
+
+    default :
+	net_writef( net, "%d Can't page %s\r\n", 522, av[ 1 ] );
 	return( 1 );
     }
-
-    net_writef( net, "%d User %s ok\r\n", 220, av[ 1 ] );
-    return( 0 );
 }
 
 f_data( net, ac, av )
