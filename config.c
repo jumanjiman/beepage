@@ -7,8 +7,10 @@
 #include <fcntl.h>
 #include <stdio.h>
 
+#include <net.h>
+
 #include "config.h"
-#include "net.h"
+#include "modem.h"
 
 struct srvdb	*srvdb = NULL;
 struct usrdb	*usrdb = NULL;
@@ -69,9 +71,9 @@ srvdb_read( path )
 	    continue;
 	}
 
-	if ( ac != 2 ) {
-	    fprintf( stderr, "%s: line %d, wrong number of arguments\n",
-		    path, lino );
+	if ( ac < 2 || ac > 3 ) {
+	    fprintf( stderr, "%s: line %d, wrong number of arguments %d\n",
+		    path, lino, ac );
 	    return( -1 );
 	}
 	if (( s = (struct srvdb *)malloc( sizeof( struct srvdb ))) == NULL ) {
@@ -89,6 +91,17 @@ srvdb_read( path )
 	}
 	strcpy( s->s_phone , av[ 1 ] );
 	s->s_pid = 0;
+
+	if ( ac == 3 ) {
+	    s->s_maxlen = atoi( av[ 2 ] );
+	} else {
+	    s->s_maxlen = TAP_MAXLEN;
+	}
+	if ( s->s_maxlen > TAP_MAXLEN || s->s_maxlen <= TAP_OVERHEAD ) {
+	    fprintf( stderr, "%s: line %d, invalid length %d\n",
+		    path, lino, s->s_maxlen );
+	    return( -1 );
+	}
 
 	s->s_next = srvdb;
 	srvdb = s;

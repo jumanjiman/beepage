@@ -411,7 +411,7 @@ queue_check()
 			    }
 
 			    switch ( rc = modem_send( modem, u->u_pin,
-				    page->p_message )) {
+				    page->p_message, u->u_service->s_maxlen )) {
 			    case -1 :	/* retry */
 				syslog( LOG_ERR, "retry %s/%s from %s to %s",
 					s->s_name, dp->d_name,

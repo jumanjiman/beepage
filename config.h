@@ -11,6 +11,7 @@ struct srvdb {
     struct srvdb	*s_next;
     char		*s_phone;
     uid_t		s_pid;
+    int			s_maxlen;
 };
 
 struct usrdb {

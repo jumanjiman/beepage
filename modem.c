@@ -301,21 +301,22 @@ tap_cksum( s )
     return( buf );
 }
 
-modem_send( modem, pin, message )
+modem_send( modem, pin, message, maxlen )
     struct modem	*modem;
     char		*pin;
     char		*message;
+    int			maxlen;
 {
     struct timeval	tv;
-    int			maxlen;
+    int			len;
     int			rc;
     char		buf[ TAP_MAXLEN ], *resp;
 
-    maxlen = sizeof( buf ) - ( strlen( pin ) + TAP_OVERHEAD );
+    len = maxlen - ( strlen( pin ) + TAP_OVERHEAD );
 
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
-    /* LLL */ syslog( LOG_DEBUG, ">>> %.*s", maxlen, message );
-    sprintf( buf, "%s\r%.*s\r", pin, maxlen, message );
+    /* LLL */ syslog( LOG_DEBUG, ">>> %.*s", len, message );
+    sprintf( buf, "%s\r%.*s\r", pin, len, message );
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
 
     if (( rc =
@@ -323,7 +324,6 @@ modem_send( modem, pin, message )
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
-syslog( LOG_INFO, "modem_send: message length is %d", rc );
 
     for (;;) {
 	tv.tv_sec = 10;
