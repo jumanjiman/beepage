@@ -119,7 +119,7 @@ main( ac, av )
 	exit( 1 );
     }
 
-    if (( net = net_attach( s )) == NULL ) {
+    if (( net = net_attach( s, 1024 * 1024 )) == NULL ) {
 	perror( "net_attach" );
 	exit( 1 );
     }
