@@ -5,6 +5,7 @@
 
 #include <sys/param.h>
 #include <sys/file.h>
+#include <signal.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -12,6 +13,8 @@
 #include <stdio.h>
 
 #include <net.h>
+
+#include "compat.h"
 
 #include "queue.h"
 #include "config.h"

@@ -11,12 +11,14 @@
 #include <syslog.h>
 #include <ctype.h>
 #include <pwd.h>
+#include <netdb.h>
 #include <errno.h>
 
 #include <net.h>
 
 #ifdef KRB
-#ifdef _svr4__
+#ifdef __svr4__
+#include <kerberos/krb.h>
 #else __svr4__
 #include <krb.h>
 #endif __svr4__

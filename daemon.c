@@ -5,7 +5,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/ioctl.h>
+#include <sys/termios.h>
 #include <sys/file.h>
 #include <sys/wait.h>
 #include <sys/time.h>
@@ -21,6 +21,8 @@
 #include <netdb.h>
 #include <errno.h>
 #include <stdlib.h>
+
+#include "compat.h"
 
 #include "path.h"
 #include "net.h"

@@ -1,7 +1,7 @@
-SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c tp.c \
-	${KSRC}
+SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c \
+	tp.c flock.c ${KSRC}
 DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
-	${KOBJ}
+	flock.o ${KOBJ}
 COBJ=	tp.o ${KOBJ}
 
 DESTDIR=/usr/local
@@ -14,22 +14,35 @@ DESTDIR=/usr/local
 #KSRC=	binhex.c
 #KOBJ=	binhex.o
 
-INCPATH=	-I../libnet ${KINCPATH}
+INCPATH=	-Ilibnet ${KINCPATH}
 DEFS=	-DLOG_TPPD=LOG_LOCAL6 ${KDEFS}
 CFLAGS=	${DEFS} ${OPTOPTS} ${INCPATH}
 TAGSFILE=	tags
-LIBPATH=	-L../libnet ${KLIBPATH}
+LIBPATH=	-Llibnet ${KLIBPATH}
 LIBS=	${ADDLIBS} -lnet ${KLIBS}
 CC=	cc
 INSTALL=	install
 
 all : tppd tp
 
-tp : ${COBJ} Makefile
+tp : libnet/libnet.a ${COBJ} Makefile
 	${CC} ${CFLAGS} ${LDFLAGS} -o tp ${COBJ} ${LIBPATH} ${LIBS}
 
-tppd : ${DOBJ} Makefile
+tppd : libnet/libnet.a ${DOBJ} Makefile
 	${CC} ${CFLAGS} ${LDFLAGS} -o tppd ${DOBJ} ${LIBPATH} ${LIBS}
+
+libnet/libnet.a :
+	cd libnet; ${MAKE} ${MFLAGS} CC=${CC}
+
+VERSION=`date +%y%m%d`
+DISTDIR=../tpp-${VERSION}
+
+dist : clean
+	cd libnet; ${MAKE} ${MFLAGS} clean
+	mkdir ${DISTDIR}
+	tar chfFFX - EXCLUDE . | ( cd ${DISTDIR}; tar xvf - )
+	chmod +w ${DISTDIR}/Makefile
+	echo ${VERSION} > ${DISTDIR}/VERSION
 
 install : all
 	${INSTALL} -o root -g tpp -m 4750 -c tppd ${DESTDIR}/etc
