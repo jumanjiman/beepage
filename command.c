@@ -214,9 +214,7 @@ f_data( net, ac, av )
 	    }
 	    /* Look at the line I just saw. Is it a header? */
 	    if ( parse_header( line, &keyheaders ) < 0 ) {
-		if ( dl_prepend( "", &d_head ) < 0 ) {
-		    return( -1 );
-		}
+		keyheaders = 0;
 		break;
 	    }
 	} else {
