@@ -13,6 +13,13 @@
 
 #include <net.h>
 
+#ifdef KRB
+#ifdef _svr4__
+#else __svr4__
+#include <krb.h>
+#endif __svr4__
+#endif KRB
+
 char			*host = "tpp";
 
 main( ac, av )
@@ -22,6 +29,13 @@ main( ac, av )
     char		*prog, buf[ 256 ], *line, *to, *from;
     int			c, err = 0, s, i;
     unsigned short	port = 0;
+#ifdef KRB
+    KTEXT_ST		auth;
+    unsigned long	cksum;
+    int			rc;
+    char		hexktext[ MAX_KTXT_LEN * 2 + 1 ];
+    char		instance[ INST_SZ ], realm[ REALM_SZ ];
+#endif KRB
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
@@ -59,14 +73,31 @@ main( ac, av )
 	}
     }
     if ( err || optind == ac || ( multiple == 0 && optind + 1 == ac )) {
-	fprintf( stderr, "Usage:\t%s [ args ]\n", prog );	/* yeah */
+	fprintf( stderr, "Usage:\t%s [ -v ] user message ...\n", prog );
 	exit( 1 );
     }
 
     /* collect message */
     if ( multiple ) {
-	fprintf( stderr, "can't do that yet\n", host );
+	fprintf( stderr, "%s: can't do that yet\n", prog );
 	exit( 1 );
+#ifdef notdef
+	p = buf;
+	while (( fgets( p, sizeof( buf ) - ( p - buf ), stdin )) != NULL ) {
+	    if ( strcmp( p, ".\n" ) == 0 ) {
+		break;
+	    }
+	    len = strlen( p );
+	    p += len - 1;
+	    if ( *p == '\n' ) {
+		*p++ = '\r';
+		*p++ = '\n';
+		*p = '\0';
+	    } else {
+		p++;
+	    }
+	}
+#endif notdef
     } else {
 	buf[ 0 ] = '\0';
 	for ( to = av[ optind++ ]; optind < ac; optind++ ) {
@@ -93,7 +124,7 @@ main( ac, av )
     }
 
     if (( hp = gethostbyname( host )) == NULL ) {
-	fprintf( stderr, "%s: host unknown\n", host );
+	herror( host );
 	exit( 1 );
     }
 
@@ -106,6 +137,7 @@ main( ac, av )
     sin.sin_family = AF_INET;
     sin.sin_port = port;
     for ( i = 0; hp->h_addr_list[ i ] != NULL; i++ ) {
+	/* address in sin, for later */
 	bcopy( hp->h_addr_list[ i ], &sin.sin_addr.s_addr, hp->h_length );
 	if ( connect( s, &sin, sizeof( struct sockaddr_in )) == 0 ) {
 	    break;
@@ -127,10 +159,33 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
+#ifdef KRB
+    if (( hp = gethostbyaddr( &sin.sin_addr.s_addr,
+	    sizeof( sin.sin_addr.s_addr ), AF_INET )) == NULL ) {
+	herror( inet_ntoa( sin.sin_addr ));
+	exit( 1 );
+    }
+    cksum = time( 0 ) ^ getpid();
+    strcpy( instance, krb_get_phost( hp->h_name ));
+    strcpy( realm, krb_realmofhost( hp->h_name ));
+    if (( rc = krb_mk_req( &auth, "rcmd", instance, realm, cksum )) !=
+	    KSUCCESS ) {
+	fprintf( stderr, "%s: %s\n", prog, krb_err_txt[ rc ] );
+	exit( 1 );
+    }
+
+    bin2hex( auth.dat, hexktext, auth.length );
+    if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
+	perror( "net_writef" );
+	exit( 1 );
+    }
+    if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
+
+#else KRB
     if (( from = cuserid( NULL )) == NULL ) {
 	fprintf( stderr, "%s: who are you?\n", prog );
 	exit( 1 );
@@ -140,6 +195,7 @@ main( ac, av )
 	exit( 1 );
     }
     if ( verbose )	printf( ">>> AUTH NONE %s\n", from );
+#endif KRB
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	fprintf( stderr, "net_getline: EOF\n" );
@@ -147,7 +203,7 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
@@ -163,7 +219,7 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
@@ -179,7 +235,7 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '3' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
@@ -195,7 +251,7 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
@@ -211,10 +267,10 @@ main( ac, av )
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
-	fprintf( stderr, "Bad response from server.\n" );
+	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
 
-    printf( "Page queued on %s\n", hp->h_name );
+    printf( "Page queued on %s\n", host );
     exit( 0 );
 }
