@@ -9,5 +9,5 @@
 #define ___P(x)         ()
 #endif __STDC__
 
-int	parse_content_type ___P(( char *, char *, char *, char *, char *, 
+int	parse_content_type ___P(( char *, char **, char **, char **, char **, 
 				  NET *net ));

@@ -39,7 +39,6 @@
 #include "sendmail.h"
 #include "compress.h"
 #include "rfc2045.h"
-#include "rfc822.h"
 
 
 int		queue_seq ___P(( char * ));
@@ -463,25 +462,11 @@ queue_read( file )
 {
     struct page		*page;
     char		*a, *b, *line, *at, *from, *subj;
+    char		*type, *subtype, *attribute, *value;
     NET			*net;
-    int 		offset, state, once, i;
+    int 		offset, state, once;
     int 		mime = 0;
-
-    char 		*type = NULL;
-    char 		*subtype = NULL;
-    char		*attribute = NULL;
-    char		*value = NULL;
-    char		*r_line = NULL;
-
-    char 		*t2 = NULL;
-    char 		*s2 = NULL;
-    char		*a2 = NULL;
-    char		*v2 = NULL;
-    char		*r2 = NULL;
-
-    int			len = 0;
-    int			done = 0;
-    int 		c = -1;
+    int			mailerr = 0;
 
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
@@ -534,11 +519,7 @@ queue_read( file )
 
     while ( ( line = net_getline( net, NULL )) != NULL ) {
 
-        if ( ( *line == '\0' ) && ( c != 0 ) ){
-	    /* don't break if I think I might have more content-type to 
-	     * parse.  Even if this line is blank, I need to confirm that
-	     * the content type is broken first, so I can set mime=0.
-	     */
+        if ( *line == '\0' ) {
 	    break;
 	}
 	if ( strncasecmp( "from:", line, 5 ) == 0 ) {
@@ -583,29 +564,17 @@ queue_read( file )
 	    mime = 1;
 	    continue;
 	}
-	if ( ( c == 0 ) ||  
-	     ( strncmp( "Content-Type:", line, 13 ) == 0 ) ) {
-	    c = parse_content_type( &r_line, line, &type, &subtype, 
-	             &attribute, &value, &len );
-	    if ( c < 0 ) { 
-	        if ( c < -1 ) { 
-		    printf( "FuXORD!\n");
-		    exit( 1 );
-		}
-		mime = 0;
-		if ( *line == '\0' ) {
-		    /* this is kind of a special error.  a malformatted
-		     * content-type that's the last header.
-		     * break here, or we'll miss the first line of the 
-		     * message.
-		     */
-		    break;
-		}
-	    } else if ( c == 0 ) {
-		continue;
-	    } else if ( c > 0 ) { 
-		printf( "%s, %s, %s, %s\n", type, subtype, attribute, value );
+	if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
+	    if (!mime) {
+		mailerr++;
 	    }
+	    if ( parse_content_type( line, &type, &subtype, 
+				    &attribute, &value, net ) < 0 ) {
+		mailerr++;
+	    }
+	    
+	    printf( "%s, %s, %s, %s\n", type, subtype, attribute, value );
+
 	}
     }
     offset = state = 0;
@@ -623,106 +592,16 @@ queue_read( file )
     }
     free( from );
     once = 0;
-
-    /* Before we just start compressing lines of email, we need to check 
-     * if we are unable to display this MIME type on a text pager. (things
-     * like type=video.) We also need to check if we have a multipart MIME
-     * case where the readable message is later in the email.
-     */
-    if  ( ( mime == 0 ) || 
-	( ( mime == 1 ) && 
-	( ( strcasecmp( type, "text" ) == 0 ) &&
-	  ( strcasecmp( subtype, "plain" ) == 0 ) ) ) ) {
-
-	while ( ( line = net_getline( net, NULL )) != NULL ) {
-	    if ( once != 0 ) {
-		if ( page_compress( page, &offset, &state, " ", 
-						TAP_MAXLEN ) < 0 ) {
-		    break;
-		}
-	    } else {
-		once = 1;
-	    }
-	    if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0) {
+    while ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( once != 0 ) {
+	    if ( page_compress( page, &offset, &state, " ", TAP_MAXLEN ) < 0 ) {
 		break;
 	    }
-	}
-    } else {
-        /* determine if this MIME type is readable at all. */
-	if ( strcasecmp( type, "multipart" ) == 0 ) {
-	    c = -1;
-	    while ( ( line = net_getline( net, NULL )) != NULL ) {
-	        if ( done ) {
-		    /* only get the first readable type from a multipart msg */
-		    break;
-		}
-		if ( strncmp( line, "--", 2 ) != 0 ) {
-	            continue;
-	        } else if ( strncmp( value, line+2, strlen( value ) ) == 0 ) {
-	            printf( "%s is the boundary\n", line+2 );
-	  	    while ( ( line = net_getline( net, NULL )) != NULL ) {
-		        if ( done ) {
-			    break;
-			}
-			if ( parse_header( line, &i ) < 0 )  {
-			    /* This part should be just like a regular
-			     * rfc822 message.
-			     */
-			    break;
-			}
-			if ( ( c == 0 ) ||
-			     ( strncmp( "Content-Type:", line, 13 ) == 0 ) ) {
-			    c = parse_content_type( &r2, line, &t2, 
-					&s2, &a2, &v2, &len );
-			    if ( c < 0 ) {
-			        break;
-			    } else if ( c == 0 ) {
-			        /* go get more of this header */
-			        continue;
-			    }
-			} else {
-			    continue;
-			}
-			if ( ( strcasecmp( t2, "text" ) != 0 ) && 
-			     ( strcasecmp( s2, "plain" ) != 0 ) ) {
-			    break;
-			}
-
-			/* skip the rest of the headers until a blank line */
-			while ( ( line = net_getline( net, NULL )) != NULL ) {
-			    if ( *line == '\0' ) {
-				break;
-			    }
-			}
-
-			while ( ( line = net_getline( net, NULL )) != NULL ) {
-			    if ( strncmp( line, "--", 2 ) == 0 ) {
-			        if ( strncmp( value, line+2, strlen( value ) ) 
-									== 0 ) {
-				    /* the end */
-				    done = 1;
-				    break;
-				}
-			    }
-			    if ( once != 0 ) {
-				if ( page_compress( page, &offset, &state, " ", 
-							    TAP_MAXLEN ) < 0 ) {
-				    break;
-				}
-			    } else {
-				once = 1;
-			    }
-			    if ( page_compress( page, &offset, &state, line, 
-							    TAP_MAXLEN ) < 0) {
-				break;
-			    }
-			}
-		    }
-	        }
-	    }
-
 	} else {
-	    printf( "I don't know how to read this type\n");
+	    once = 1;
+	}
+	if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0 ) {
+	    break;
 	}
     }
         
