@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/file.h>
+#include <sys/types.h>
+#include <sys/param.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <syslog.h>
@@ -20,6 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #include <net.h>
 
@@ -44,6 +47,10 @@ int		main ___P(( int, char *av[] ));
 hup( sig )
     int			sig;
 {
+
+    struct srvdb	*srv, *first;
+    struct stat		q_stat;
+
     syslog( LOG_INFO, "reload %s", version );
 
     if ( srvdb_read( _PATH_SRVDB ) < 0 ) {
@@ -58,6 +65,22 @@ hup( sig )
 	syslog( LOG_ERR, "%s: failed", _PATH_GRPDB );
 	exit( 1 );
     }
+
+    srv = first = srvdb_next();
+    do {
+	/* create any needed spool dirs */
+	if ( stat( srv->s_name, &q_stat ) < 0 ) {
+	    if ( errno == ENOENT ) {
+		if ( mkdir( _PATH_SPOOL, 0755 ) < 0 ) {
+		    perror( _PATH_SPOOL );
+		    exit( 1 );
+		}
+	    } else {
+		perror( _PATH_SPOOL );
+		exit( 1 );
+	    }
+	}
+    } while (( srv = srvdb_next()) != first );
 }
 
     void
@@ -115,6 +138,12 @@ main( ac, av )
     unsigned short	port = 0;
     extern int		optind;
     extern char		*optarg;
+    struct stat		q_stat;
+    struct srvdb	*first, *srv;
+    char		lockfile[ MAXPATHLEN ];
+    DIR			*dirp;
+    struct dirent	*dp;
+
 
     if (( prog = strrchr( av[ 0 ], '/' )) == NULL ) {
 	prog = av[ 0 ];
@@ -176,6 +205,19 @@ main( ac, av )
 	exit( 1 );
     }
 
+    if ( stat( _PATH_SPOOL, &q_stat ) < 0 ) {
+        if ( errno == ENOENT ) {
+	    if ( mkdir( _PATH_SPOOL, 0755 ) < 0 ) {
+	        perror( _PATH_SPOOL );
+		exit( 1 );
+	    }
+	} else {
+	    perror( _PATH_SPOOL );
+	    exit( 1 );
+	}
+    }
+
+
     if ( chdir( _PATH_SPOOL ) < 0 ) {
 	perror( _PATH_SPOOL );
 	exit( 1 );
@@ -210,6 +252,36 @@ main( ac, av )
 	}
 	exit( 0 );
     }
+
+    srv = first = srvdb_next();
+    do {
+	/* check for any lockfiles */
+	if (( dirp = opendir( srv->s_name )) == NULL ) {
+	    if ( errno == ENOENT ) {
+		if ( mkdir( srv->s_name, 0755 ) < 0 ) {
+		    perror( srv->s_name );
+		    exit( 1 );
+		}
+		continue;
+	    } else {
+		perror( srv->s_name );
+		exit( 1 );
+	    }
+	}
+	while (( dp = readdir( dirp )) != NULL ) {
+	    if ( *dp->d_name == '.' ) {
+		if ( strncmp( dp->d_name, ".seq.lock", 9 ) == 0 ) {
+		    sprintf( lockfile, "%s/%s", srv->s_name, ".seq.lock" );
+		    if ( unlink( lockfile ) < 0 ) {
+			perror( lockfile );
+			exit( 1 );
+		    }
+		}
+	    }
+	}
+	closedir( dirp );
+        
+    } while (( srv = srvdb_next()) != first );
 
     if ( dontrun ) {
 	exit( 0 );
