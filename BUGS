@@ -7,7 +7,7 @@ turn-around time for a fix.
 Subject: Short summary of the problem (please make this meaningful!)
 
 Environment:
-	The version of beepage you're running ("tp -V" or "tppd -V"),
+	The version of beepage you're running ("beep -V" or "beepaged -V"),
 	any changes you've made to the configuration, e.g. Kerberos,
 	what machine you're running beepage on, and the version of
 	the operating system.

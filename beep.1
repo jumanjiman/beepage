@@ -1,15 +1,15 @@
-.TH TP 1 Sept98 RSUG
+.TH BEEP 1 Sept98 RSUG
 .SH NAME 
-.B tp
+.B beep
 \-  send alpha-numeric pages, using text page protocol
 .SH SYNOPSIS
-.B tp 
+.B beep 
 [
 .I options
 ] 
 .I user
 .br
-.B tp 
+.B beep 
 [
 .I options
 ] 
@@ -17,7 +17,7 @@
 .I user
 \&.\|.\|.
 .br
-.B tp 
+.B beep 
 [
 .I options
 ]
@@ -26,23 +26,23 @@
 ...
 .br
 .SH DESCRIPTION
-.B tp
+.B beep
 queues alpha-numeric pages to a TPP server, by default the hostname
-.RB `` tpp ''.
+.RB `` beepage ''.
 The server,
-.BR tppd (8),
+.BR beepaged (8),
 accepts page requests and later delivers the data to a paging service
 provider.
 .LP
 If
-.B tp
+.B beep
 is invoked with only one command line argument or with
 .BR \-m ,
 all command line arguments are interpreted as
 .IR user s
 and the message is given on stdin, terminated by EOF or ``.'' on a line
 by itself.  Otherwise,
-.B tp
+.B beep
 interprets it's first argument as a
 .IR user ,
 and the remaining command line arguments as the message.  Note: The
@@ -52,14 +52,14 @@ Characters that are special to the shell must be escaped or quoted.
 .TP 20
 .B \-V
 displays the version of
-.B tp
+.B beep
 and exits.
 .TP 20
 .B \-v
 display the protocol exchange with the TPP server.
 .TP 20
 .BI \-h\  hostname
-specifies the TPP server, by default ``tpp''.
+specifies the TPP server, by default ``beepage''.
 .TP 20
 .BI \-p\  port
 specifies TPP port, by default 6661.
@@ -76,8 +76,8 @@ suck, bob!'':
 .sp
 .RS
 .nf
-	example% tp bob you suck, bob\\!
-	Page queued on tpp.
+	example% beep bob you suck, bob\\!
+	Page queued on beepage.
 	example%
 .fi
 .RE
@@ -89,14 +89,14 @@ In the following example, users ``bob'' and ``betty'' will receive the message
 .sp
 .RS
 .nf
-	example% tp -m bob betty
+	example% beep -m bob betty
 	you are both big losers, bob and betty!
 	.
-	Page queued on tpp.
+	Page queued on beepage.
 	example%
 .fi
 .RE
 .sp
 Since the ``!'' is taken as stdin, no escape is necessary.
 .SH SEE ALSO
-.BR tppd (8).
+.BR beepaged (8).

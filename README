@@ -6,12 +6,12 @@ Contents:
 	    o BUILDING & INSTALLING
 	    o Getting Help
 
-The beepage package includes two programs: tppd, the "Text Page
-Protocol" daemon which accepts pages on a well-known TCP port and
+The beepage package includes two programs: beepaged, the Text Page
+Protocol daemon which accepts pages on a well-known TCP port and
 transmits them over one or more modems to a TAP (aka PET, IXA)
-paging-service provider; and tp, a command-line TPP client.
+paging-service provider; and beep, a command-line TPP client.
 
-tppd has been tested on the following systems:
+beepaged has been tested on the following systems:
 
 	OS	Versions
 	--	--------
@@ -28,8 +28,8 @@ Building beepage:
     MANDIR, SBINDIR, BINDIR, and ETCDIR, can also be set separately to
     control the locations of the various installed files.
 
-2.  Review OS and installation specific options.  TPPDSYSLOG can be set
-    to the syslog facility where you'd like tppd to log.  There are
+2.  Review OS and installation specific options.  BEEPAGEDSYSLOG can be set
+    to the syslog facility where you'd like beepaged to log.  There are
     specific options to support Solaris.  There are several options to
     enable Kerberos 4 support, and additional options to select the
     flavor of Kerberos 4 installed on your machine.
@@ -39,19 +39,19 @@ Building beepage:
 
 Installing beepage:
 
-1.  The tppd binary is installed setgid "tpp".  This group must exist.
+1.  The beepaged binary is installed setgid "beepage".  This group must exist.
 
 2.  To install the binaries, type "make install" at the root of the
     source tree.  This will install all of the binaries.
 
-3.  Add the contents of services.tpp to your /etc/services database.
-    If you're using NIS (YP), add the contents of services.tpp to the
+3.  Add the contents of services.beepage to your /etc/services database.
+    If you're using NIS (YP), add the contents of services.beepage to the
     NIS master's maps and push them.
 
-4.  Sample config files for tppd are in the SAMPLE directory, e.g.
-    SAMPLE/tppd.users.  Install your own versions of these files in
-    ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/tppd.users.  See
-    tppd's man page for a description of it's configuration file.
+4.  Sample config files for beepaged are in the SAMPLE directory, e.g.
+    SAMPLE/beepage.users.  Install your own versions of these files in
+    ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/beepage.users.  See
+    beepaged's man page for a description of it's configuration files.
 
 You might be interested in looking at the RSUG home page at
 http://www.umich.edu/~rsug/.
