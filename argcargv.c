@@ -1,13 +1,21 @@
 /*
+ * Copyright (c) 1998 Regents of The University of Michigan.
+ * All Rights Reserved.  See COPYRIGHT.
+ */
+
+/*
  * Return parsed argc/argv from the net.
  */
 
 #include <sys/param.h>
+#include <stdlib.h>
+
+#include "command.h"
 
 #define ACV_ARGC		10
 #define ACV_WHITE		0
 #define ACV_WORD		1
-static int	acv_argc;
+static unsigned	acv_argc;
 static char	**acv_argv;
 
     int
@@ -15,7 +23,6 @@ argcargv( line, argv )
     char		*line;
     char		**argv[];
 {
-    char	*p;
     int		ac;
     int		state;
 
@@ -46,7 +53,8 @@ argcargv( line, argv )
 		if ( ac >= acv_argc ) {
 		    /* realloc */
 		    if (( acv_argv = (char **)realloc( acv_argv,
-			    acv_argc + ACV_ARGC )) == NULL ) {
+			    sizeof( char * ) * ( acv_argc + ACV_ARGC )))
+			    == NULL ) {
 			return( -1 );
 		    }
 		    acv_argc += ACV_ARGC;
