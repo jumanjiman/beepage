@@ -28,14 +28,14 @@ AC_DEFUN([CHECK_KERBEROS],
 	done
 	if test x_$found_krb != x_yes; then
 	    AC_MSG_RESULT(no)
-	    AC_MSG_CHECKING(for openbsd kerberos 5)
+	    AC_MSG_CHECKING(for heimdal kerberos 5)
 	    for dir in $krbdirs; do
 		krbdir="$dir";
 	        if test -f "$dir/include/kerberosV/krb5.h"; then
 		    found_krb="yes";
 		    CFLAGS="$CFLAGS -I$dir/include/kerberosV -I$dir/include/kerberosIV";
 		    LDFLAGS="$LDFLAGS -L$krbdir/lib";
-		    LIBS="$LIBS -lkrb -lkrb5 -lcom_err"
+		    LIBS="$LIBS -lkrb -lkrb5 -lcom_err -lhdb"
 		    break;
 	        fi
 	    done
