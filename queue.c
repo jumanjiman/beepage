@@ -8,6 +8,10 @@
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/param.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <syslog.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -15,6 +19,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+
+#ifdef __STDC__
+#include <stdarg.h>
+#else __STDC__
+#include <varargs.h>
+#endif __STDC__
 
 #include <net.h>
 
@@ -25,24 +36,45 @@
 #include "modem.h"
 #include "path.h"
 #include "sendmail.h"
+#include "compress.h"
 
-struct page {
-    char	*p_from;
-    char	*p_to;
-    int		p_flags;
-    char	*p_message;
-};
 
 int		queue_seq ___P(( char * ));
 struct page	*queue_read ___P(( char * ));
 void		queue_free ___P(( struct page * ));
 
+
+    void
+#ifdef __STDC__
+queue_printf( struct pqueue *pq, char *format, ... ) 
+#else __STDC__
+queue_printf( pq, format, va_alist )
+    struct pqueue *pq;
+    char *format;
+#endif __STDC__
+{
+    va_list val;
+    struct quser *qu;
+
+#ifdef __STDC__
+    va_start( val, format );
+#else __STDC__
+    va_start( val );
+#endif __STDC__
+
+    for ( qu = pq->q_users; qu != NULL; qu = qu->qu_next ) {
+        vfprintf( qu->qu_fp, format, val );
+    }
+    va_end( val );
+}
     struct pqueue *
-queue_init( sender, flags )
+queue_init( sender, flags, net )
     char		*sender;
     int			flags;
+    NET			*net;
 {
     struct pqueue	*q;
+    int			sinlen;
 
     /* XXX check deny list */
 
@@ -59,6 +91,14 @@ queue_init( sender, flags )
     q->q_flags = flags;
     q->q_users = NULL;
 
+    memset( &q->q_sin, 0, sizeof( struct sockaddr_in ));
+    sinlen = sizeof( struct sockaddr );
+    if ( getpeername( net->nh_fd, (struct sockaddr *)&q->q_sin, &sinlen ) < 0) {
+	syslog( LOG_ERR, "getsockname: %m" );
+	free( q->q_sender );
+	free( q );
+	return( NULL );
+    }
     return( q );
 }
 
@@ -191,8 +231,13 @@ queue_create( q )
 {
     struct quser	*qu;
     char		*service;
-    char		buf[ MAXPATHLEN ];
+    char		buf[ MAXPATHLEN ], hostname[ MAXHOSTNAMELEN ];
     int			fd;
+    time_t		now;
+    struct tm		*tm;
+    char		timestamp[ 50 ];
+    struct hostent	*host;
+    extern char		*version;
 
     if ( q->q_users == NULL ) {
 	return( -1 );
@@ -214,37 +259,50 @@ queue_create( q )
 	    return( -1 );
 	}
 
+	fprintf( qu->qu_fp, "F%s\nT%s\nM\n", q->q_sender,
+		qu->qu_user->u_name );
+
+        if ( gethostname( hostname, MAXHOSTNAMELEN ) < 0 ) {
+		syslog( LOG_ERR, "gethostname: %m" );
+		strcpy( hostname, "localhost" );
+	}
+
 	/* XXX need a flag for CONFIRM and QUIET */
 
-	fprintf( qu->qu_fp, "F%s\nT%s\nM\n%s:", q->q_sender,
-		qu->qu_user->u_name, q->q_sender );
-    }
+	now = time( NULL );
+	tm = localtime( &now );
 
+	strftime( timestamp, 100, "%a, %e %b %Y %R:%S (%Z)", tm );
+
+        if (( host = gethostbyaddr( ( char *)&q->q_sin.sin_addr,
+	    sizeof( struct in_addr ), AF_INET )) == NULL ) {
+	    syslog( LOG_ERR, "gethostbyaddr failed for: %s", 
+		inet_ntoa( q->q_sin.sin_addr ) );
+	}
+
+	fprintf( qu->qu_fp, "Received: from %s (%s)\n",
+		( ( host != NULL ) ? host->h_name : "unknown" ),
+	    	inet_ntoa( q->q_sin.sin_addr ) );
+
+	fprintf( qu->qu_fp, "\tby %s (%s) with TPP\n", hostname, version );
+	
+	fprintf( qu->qu_fp, "\tid %s/%d for %s; %s\n",
+		(usrdb_find(qu->qu_user->u_name))->u_service->s_name,
+		qu->qu_seq, qu->qu_user->u_name, timestamp );
+    }
     return( 0 );
 }
 
-    int
+    void
 queue_line( q, line )
     struct pqueue	*q;
     char		*line;
 {
     struct quser	*qu;
-    int			rc = 0;
 
     for ( qu = q->q_users; qu != NULL; qu = qu->qu_next ) {
 	fprintf( qu->qu_fp, "%s\n", line );
-	/*
-	 * Maybe a better strategy would be to accept a page of any length,
-	 * and truncate it to an appropriate length on the send.  This way,
-	 * the client doesn't have to be careful when sending, and the page
-	 * will arrive via email anyway.
-	 */
-	qu->qu_len += strlen( line ) + 1;
-	if ( qu->qu_len > TAP_MAXLEN ) {	/* XXX should be per-user? */
-	    rc = -1;
-	}
     }
-    return( rc );
 }
 
 /* remove queue files */
@@ -305,9 +363,9 @@ queue_read( file )
     char		*file;
 {
     struct page		*page;
-    FILE		*fp;
-    char		buf[ 256 ], *p;
-    int			len;
+    char		*line, *at, *from, *subj;
+    NET			*net;
+    int 		offset, state, once;
 
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
@@ -315,78 +373,121 @@ queue_read( file )
     }
     page->p_flags = 0;
 
-    if (( fp = fopen( file, "r" )) == NULL ) {
-	syslog( LOG_ERR, "fopen: %s: %m", file );
+    if (( net = net_open( file, O_RDONLY, 0, 0 )) == NULL ) {
+        perror( "net_open" );
 	return( NULL );
     }
 
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
+    if ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( *line != 'F' ) {
+	    syslog( LOG_ERR, "error in queue file!" );
+	    return( NULL );
+	}
+	line++;
+	if (( page->p_from = (char *)malloc( strlen( line ) + 1 )) == NULL ) {
+	    syslog( LOG_ERR, "malloc: %m" );
+	    exit( 1 );
+	}
+	strcpy( page->p_from, line );
+    } else {
 	return( NULL );
     }
-    len = strlen( buf );
-    if ( *buf != 'F' || *( buf + len - 1 ) != '\n' ) {
-	syslog( LOG_ERR, "error in queue file!" );
-	return( NULL );
-    }
-    *( buf + len - 1 ) = '\0';
-    p = buf + 1;
-
-    if (( page->p_from = (char *)malloc( strlen( p ) + 1 )) == NULL ) {
-	syslog( LOG_ERR, "malloc: %m" );
-	exit( 1 );
-    }
-    strcpy( page->p_from, p );
-
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
-	return( NULL );
-    }
-    len = strlen( buf );
-    if ( *buf != 'T' || *( buf + len - 1 ) != '\n' ) {
-	syslog( LOG_ERR, "error in queue file!" );
-	return( NULL );
-    }
-    *( buf + len - 1 ) = '\0';
-    p = buf + 1;
-
-    if (( page->p_to = (char *)malloc( strlen( p ) + 1 )) == NULL ) {
-	syslog( LOG_ERR, "malloc: %m" );
-	exit( 1 );
-    }
-    strcpy( page->p_to, p );
-
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
-	return( NULL );
-    }
-    if ( strcmp( buf, "M\n" ) != 0 ) {
-	syslog( LOG_ERR, "error in queue file!" );
+    if ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( *line != 'T' ) {
+	    syslog( LOG_ERR, "error in queue file!" );
+	    return( NULL );
+	}
+	line++;
+	if (( page->p_to = (char *)malloc( strlen( line ) + 1 )) == NULL ) {
+	    syslog( LOG_ERR, "malloc: %m" );
+	    exit( 1 );
+	}
+	strcpy( page->p_to, line );
+    } else {
 	return( NULL );
     }
 
-    page->p_message = NULL;
-    while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
-	if ( page->p_message == NULL ) {
-	    if (( page->p_message =
-		    (char *)malloc( strlen( buf ) + 1 )) == NULL ) {
-		syslog( LOG_ERR, "malloc: %m" );
-		exit( 1 );
-	    }
-	    strcpy( page->p_message, buf );
-	} else {
-	    len = strlen( page->p_message );
-	    if (( page->p_message = (char *)realloc( page->p_message,
-		    len + strlen( buf ) + 1 )) == NULL ) {
-		syslog( LOG_ERR, "realloc: %m" );
-		exit( 1 );
-	    }
-	    strcpy( page->p_message + len, buf );
+    if ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( *line != 'M' ) {
+	    syslog( LOG_ERR, "error in queue file!" );
+	    return( NULL );
 	}
     }
-    *( page->p_message + strlen( page->p_message ) - 1 ) = '\0'; /*trailing NL*/
 
-    fclose( fp );
+    from = subj = NULL;
+
+    while ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( *line == '\0' ) {
+	    break;
+	}
+	if ( strncasecmp( "from:", line, 5 ) == 0 ) {
+	    /* cut before < */
+	    if ( ( at = strchr( line, '<' ) ) != NULL ) {
+	        line = at + 1;
+		/* cut off @... */
+		if ( ( at = strchr( line, '@' ) ) != NULL ) {
+		    *at = '\0';
+		}
+		if ( ( from = (char *)malloc( strlen( line ) + 1 ) ) == NULL ) {
+		    syslog( LOG_ERR, "malloc: %m" );
+		    exit( 1 );
+		}
+	    } else {
+		/* cut off @... */
+		if ( ( at = strchr( line, '@' ) ) != NULL ) {
+		    *at = '\0';
+		}
+		/* sizeof the line - "from: " + null char */
+		if ( ( from = (char *)malloc( strlen( line ) - 5 ) ) == NULL ) {
+		    syslog( LOG_ERR, "malloc: %m" );
+		    exit( 1 );
+		}
+		line += 6;
+	    }
+	    sprintf( from, "%s", line );
+	}
+	if ( strncasecmp( "Subject:", line, 8 ) == 0 ) {
+	    if ( ( strcasecmp( line, "Subject: page sent" ) != 0 ) && 
+		     ( strcmp( line, "Subject:" ) != 0 ) ) {
+		/* sizeof the line - "subject: " + null char */
+		if ( ( subj = (char *)malloc( strlen( line ) - 8 ) ) == NULL ) {
+		    syslog( LOG_ERR, "malloc: %m" );
+		    exit( 1 );
+		}
+		line += 9;
+		sprintf( subj, "%s", line );
+	    }
+	}
+    }
+    offset = state = 0;
+    if ( subj != NULL ) {
+        page_compress( page, &offset, &state, from, TAP_MAXLEN );
+        page_compress( page, &offset, &state, ":", TAP_MAXLEN );
+
+        page_compress( page, &offset, &state, subj, TAP_MAXLEN );
+        page_compress( page, &offset, &state, ":", TAP_MAXLEN );
+
+	free( subj );
+    } else {
+        page_compress( page, &offset, &state, from, TAP_MAXLEN );
+        page_compress( page, &offset, &state, ":", TAP_MAXLEN );
+    }
+    free( from );
+    once = 0;
+    while ( ( line = net_getline( net, NULL )) != NULL ) {
+        if ( once != 0 ) {
+	    if ( page_compress( page, &offset, &state, " ", TAP_MAXLEN ) < 0 ) {
+		break;
+	    }
+	} else {
+	    once = 1;
+	}
+	if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0 ) {
+	    break;
+	}
+    }
+        
+    net_close( net );
     return( page );
 }
 
@@ -396,7 +497,6 @@ queue_free( page )
 {
     free( page->p_from );
     free( page->p_to );
-    free( page->p_message );
     free( page );
     return;
 }
@@ -413,6 +513,10 @@ queue_check( osachld, osahup )
     struct page		*page;
     char		*subject;
     int			pid, cnt, rc;
+    struct stat		qf_buf;
+    time_t		now;
+    int			deltime, hour, min, sec;
+
 
     while (( modem = modem_find()) != NULL ) {
 	s = first = srvdb_next();
@@ -488,9 +592,22 @@ queue_check( osachld, osahup )
 				exit( 1 );
 
 			    case 0 :	/* OK */
-				syslog( LOG_INFO, "sent %s/%s from %s to %s",
-					s->s_name, dp->d_name,
-					page->p_from, page->p_to );
+				now = time( NULL );
+
+				if ( lstat( dp->d_name, &qf_buf ) < 0 ) {
+				    perror( "lstat" );
+				    /*syslog?*/
+				    hour = min = sec = 0;
+				} else {
+				    deltime = now - qf_buf.st_mtime;
+				    hour = ( deltime / 3600 );
+				    min = ( ( deltime % 3600 ) / 60 );
+				    sec = ( deltime % 60 );
+				}    
+				syslog( LOG_INFO, 
+				 "sent %s/%s from %s to %s in %02d:%02d:%02d",
+				    s->s_name, dp->d_name,
+				    page->p_from, page->p_to, hour, min, sec );
 				subject = "page sent";
 				break;
 
@@ -501,10 +618,6 @@ queue_check( osachld, osahup )
 				subject = "page failed";
 				break;
 			    }
-			    if ( unlink( dp->d_name ) < 0 ) {
-				syslog( LOG_ERR, "unlink: %s: %m", dp->d_name );
-				exit( 1 );
-			    }
 
 			    /*
 			     * There are two subjects, each of which
@@ -513,26 +626,21 @@ queue_check( osachld, osahup )
 			     * sent to everyone here.
 			     *
 			     * If the user has a different email addr in
-			     * the tppd.users file, tell sendmail() here
+			     * the users file, tell sendmail() here
 			     */
 
 			    if ( u->u_flags & U_SENDMAIL ) {
 				if ( sendmail((( u->u_email != NULL ) ?
 					u->u_email : page->p_to ),
 					page->p_from, subject,
-					page->p_message ) < 0 ) {
+					 dp->d_name ) < 0 ) {
 				    syslog( LOG_ERR, "sendmail: failed" );
 				}
 			    }
-
-#ifdef notdef
-			    if ((( page->p_flags & P_CONFIRM ) || ( rc > 0 &&
-				    ( page->p_flags & P_QUIET ) == 0 )) &&
-				    sendmail( page->p_from, NULL, subject,
-				    page->p_message ) < 0 ) {
-				syslog( LOG_ERR, "sendmail: failed" );
+			    if ( unlink( dp->d_name ) < 0 ) {
+				syslog( LOG_ERR, "unlink: %s: %m", dp->d_name );
+				exit( 1 );
 			    }
-#endif notdef
 
 			    queue_free( page );
 			    cnt++;
