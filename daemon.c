@@ -270,7 +270,7 @@ main( ac, av )
 		setpgrp( 0, getpid());
 		(void)close( i );
 	    }
-	    if (( i = open( "/", O_RDONLY, 0 )) >= 0 ) {
+	    if (( i = open( "/", O_RDONLY, 0 )) != 0 ) {
 		dup2( i, 1 );
 		dup2( i, 2 );
 	    }
