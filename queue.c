@@ -455,7 +455,7 @@ queue_check()
 			     * sent to everyone here.
 			     */
 			    if (( u->u_flags & U_SENDMAIL ) &&
-				    sendmail( page->p_to, subject,
+				    sendmail( page->p_to, page->p_from, subject,
 				    page->p_message ) < 0 ) {
 				syslog( LOG_ERR, "sendmail: failed" );
 			    }
@@ -463,7 +463,7 @@ queue_check()
 #ifdef notdef
 			    if ((( page->p_flags & P_CONFIRM ) || ( rc > 0 &&
 				    ( page->p_flags & P_QUIET ) == 0 )) &&
-				    sendmail( page->p_from, subject,
+				    sendmail( page->p_from, NULL, subject,
 				    page->p_message ) < 0 ) {
 				syslog( LOG_ERR, "sendmail: failed" );
 			    }
