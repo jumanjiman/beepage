@@ -12,12 +12,12 @@ extern char		*maildomain;
 
 char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
 
-sendmail( to, subject, message )
+sendmail( to, from, subject, message )
     char		*to;
     char		*subject;
     char		*message;
 {
-    char		buf[ 256 ];
+    char		tobuf[ 256 ], frombuf[ 256 ];
     FILE		*fp;
     int			fd[ 2 ], c;
 
@@ -27,9 +27,11 @@ sendmail( to, subject, message )
     }
 
     if ( maildomain != NULL ) {
-	sprintf( buf, "%s@%s", to, maildomain );
+	sprintf( tobuf, "%s@%s", to, maildomain );
+	sprintf( frombuf, "%s@%s", from, maildomain );
     } else {
-	sprintf( buf, "%s", to );
+	sprintf( tobuf, "%s", to );
+	sprintf( frombuf, "%s", from );
     }
 
     switch ( c = fork()) {
@@ -50,7 +52,7 @@ sendmail( to, subject, message )
 	    syslog( LOG_ERR, "sendmail: close: %m" );
 	    return( -1 );
 	}
-	sendmailargv[ 3 ] = buf;
+	sendmailargv[ 3 ] = tobuf;
 	execv( _PATH_SENDMAIL, sendmailargv );
 	exit( 1 );
 
@@ -64,12 +66,12 @@ sendmail( to, subject, message )
 	    syslog( LOG_ERR, "sendmail: fdopen: %m" );
 	    return( -1 );
 	}
-	fprintf( fp, "To: %s\n", buf );
-	fprintf( fp, "From: Text-Page-Confirmed:;\n" );
+	fprintf( fp, "To: %s\n", tobuf );
+	fprintf( fp, "From: %s\n", frombuf );
 	fprintf( fp, "Subject: %s\n\n", subject );
 	fprintf( fp, "%s\n", message );
 	fclose( fp );
-	syslog( LOG_INFO, "sendmail confirmation to %s", buf );
+	syslog( LOG_INFO, "sendmail confirmation to %s", tobuf );
     }
 
     return( 0 );
