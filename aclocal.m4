@@ -35,7 +35,7 @@ AC_DEFUN([CHECK_KERBEROS],
 		    found_krb="yes";
 		    CFLAGS="$CFLAGS -I$dir/include/kerberosV -I$dir/include/kerberosIV";
 		    LDFLAGS="$LDFLAGS -L$krbdir/lib";
-		    LIBS="$LIBS -lkrb -lkrb5 -lcom_err -lhdb"
+		    LIBS="$LIBS -lkrb -lkrb5 -lcom_err -lacl1"
 		    break;
 	        fi
 	    done
