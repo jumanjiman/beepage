@@ -1,26 +1,33 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <termios.h>
 #include <syslog.h>
-#include <stdio.h>
 #include <fcntl.h>
+#include <termios.h>
+#include <string.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include <net.h>
 
-#include "modem.h"
 #include "config.h"
+#include "modem.h"
 
 struct modem		*modems = NULL;
 
 char			*connectstr = "CONNECT";
 char			*banner = "ID=";
 
+char			*tap_cksum ___P(( char * ));
+
+    int
 modem_add( path )
     char		*path;
 {
@@ -56,8 +63,9 @@ modem_find()
     return( m );
 }
 
+    void
 modem_checkin( pid )
-    uid_t	pid;
+    pid_t	pid;
 {
     struct modem	*m;
 
@@ -70,13 +78,16 @@ modem_checkin( pid )
     return;
 }
 
+    void
 modem_checkout( modem, pid )
     struct modem	*modem;
-    uid_t		pid;
+    pid_t		pid;
 {
     modem->m_pid = pid;
+    return;
 }
 
+    int
 modem_disconnect( modem )
     struct modem	*modem;
 {
@@ -116,6 +127,7 @@ modem_disconnect( modem )
     return( 0 );
 }
 
+    int
 modem_connect( modem, service )
     struct modem	*modem;
     struct srvdb	*service;
@@ -123,15 +135,12 @@ modem_connect( modem, service )
     struct termios	tc;
     struct timeval	tv;
     char		*resp, buf[ 1024 ];
-    int			fd, speed, i;
-    int			len, cc;
+    int			fd, i;
+    unsigned		len, speed;
+    int			cc, flags;
 
-    if (( fd = open( modem->m_path, O_RDWR, 0 )) < 0 ) {
+    if (( fd = open( modem->m_path, O_RDWR | O_NONBLOCK, 0 )) < 0 ) {
 	syslog( LOG_ERR, "open: %s: %m", modem->m_path );
-	return( -1 );
-    }
-    if ( ioctl( fd, TIOCSSOFTCAR, 0 ) < 0 ) {
-	syslog( LOG_ERR, "ioctl: setsoftcarrier: %m" );
 	return( -1 );
     }
     if ( tcgetattr( fd, &tc ) < 0 ) {
@@ -158,13 +167,23 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
+    if (( flags = fcntl( fd, F_GETFL, 0 )) < 0 ) {
+	syslog( LOG_ERR, "getfl: %m" );
+	return( -1 );
+    }
+    flags &= ~O_NONBLOCK;
+    if ( fcntl( fd, F_SETFL, flags ) < 0 ) {
+	syslog( LOG_ERR, "setfl: %m" );
+	return( -1 );
+    }
+
     if (( modem->m_net = net_attach( fd, 1024 * 1024 )) == NULL ) {
 	syslog( LOG_ERR, "net_attach: %m" );
 	return( -1 );
     }
 
-    /* LLL */ syslog( LOG_DEBUG, ">>> ATM0E0&D3" );
-    if ( net_writef( modem->m_net, "ATM0E0&D3\r" ) < 0 ) {
+    /* LLL */ syslog( LOG_DEBUG, ">>> ATM0E0" );
+    if ( net_writef( modem->m_net, "ATM0E0\r" ) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
@@ -192,7 +211,7 @@ modem_connect( modem, service )
 	return( -1 );
     }
     for ( i = 0; i < 2; i++ ) {
-	tv.tv_sec = 2 * 60;
+	tv.tv_sec = 5 * 60;
 	tv.tv_usec = 0;
 	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
 	    syslog( LOG_ERR, "net_getline: connect: %m" );
@@ -306,6 +325,7 @@ tap_cksum( s )
     return( buf );
 }
 
+    int
 modem_send( modem, pin, message, maxlen )
     struct modem	*modem;
     char		*pin;
