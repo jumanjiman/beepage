@@ -12,9 +12,9 @@ extern char		*maildomain;
 
 char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
 
-sendmail( from, to, message )
-    char		*from;
+sendmail( to, subject, message )
     char		*to;
+    char		*subject;
     char		*message;
 {
     char		buf[ 256 ];
@@ -66,7 +66,7 @@ sendmail( from, to, message )
 	}
 	fprintf( fp, "To: %s\n", buf );
 	fprintf( fp, "From: Text-Page-Confirmed:;\n" );
-	fprintf( fp, "Subject: page sent from %s\n\n", from );
+	fprintf( fp, "Subject: %s\n\n", subject );
 	fprintf( fp, "%s\n", message );
 	fclose( fp );
 	syslog( LOG_INFO, "sendmail confirmation to %s", buf );
