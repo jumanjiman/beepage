@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
@@ -8,11 +8,13 @@ int	flock_dummy;
 # if defined( sun ) && defined( __svr4__ )
 
 #include <sys/types.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 
 #include "compat.h"
 
+    int
 flock( fd, operation )
     int		fd;
     int		operation;

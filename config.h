@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
@@ -10,7 +10,7 @@ struct srvdb {
     char		*s_name;
     struct srvdb	*s_next;
     char		*s_phone;
-    uid_t		s_pid;
+    pid_t		s_pid;
     int			s_maxlen;
 };
 
@@ -22,5 +22,16 @@ struct usrdb {
     char		*u_pin;
 };
 
-struct usrdb		*usrdb_find();
-struct srvdb		*srvdb_next();
+#ifdef __STDC__
+#define ___P(x)		x
+#else __STDC__
+#define ___P(x)		()
+#endif __STDC__
+
+struct usrdb		*usrdb_find ___P(( char * ));
+int			usrdb_read ___P(( char * ));
+struct srvdb		*srvdb_next ___P(( void ));
+int			srvdb_read ___P(( char * ));
+void			srvdb_checkin ___P(( pid_t ));
+void			srvdb_checkout ___P(( struct srvdb *, pid_t ));
+struct srvdb		*srvdb_find ___P(( char	* ));
