@@ -1,11 +1,9 @@
 /*
- * Copyright (c) 1995 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#define _PATH_USRDB	"/usr/local/etc/tppd.users"
-#define _PATH_SRVDB	"/usr/local/etc/tppd.services"
-#define _PATH_PIDFILE	"/usr/local/etc/tppd.pid"
-
 #define _PATH_SPOOL	"/var/spool/tppd"
+#ifndef _PATH_SENDMAIL
 #define _PATH_SENDMAIL	"/usr/lib/sendmail"
+#endif _PATH_SENDMAIL
