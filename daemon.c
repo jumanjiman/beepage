@@ -71,12 +71,12 @@ hup( sig )
 	/* create any needed spool dirs */
 	if ( stat( srv->s_name, &q_stat ) < 0 ) {
 	    if ( errno == ENOENT ) {
-		if ( mkdir( _PATH_SPOOL, 0755 ) < 0 ) {
-		    perror( _PATH_SPOOL );
+		if ( mkdir( srv->s_name, 0755 ) < 0 ) {
+		    perror( srv->s_name );
 		    exit( 1 );
 		}
 	    } else {
-		perror( _PATH_SPOOL );
+		perror( srv->s_name );
 		exit( 1 );
 	    }
 	}
