@@ -1,0 +1,82 @@
+'\" t
+.\" This is a comment. The line above indicates to "man" that "tbl"
+.\" should be run on the input. The 4th section has an example of
+.\" tbl macros used in a man page.
+.TH TP "1" "August 1997" "Author" "Section Title"
+.SH TP 
+.B tp
+\-  send alphanumeric pages, using tp protocol. 
+.SH SYNOPSIS
+.B tp 
+user...
+.br
+.B tp 
+[
+.B \-v
+] 
+[
+.B \-m 
+] user ...
+.br
+.B tp 
+[
+.B \-v 
+] user 
+.I message
+.B .\|.\|.
+.br
+.SH DESCRIPTION
+.B tp 
+is a program to queue alphanumerical pages from the command line.  When 
+.B tp 
+is started it connects  to a 
+TPP server, by default the hostname 
+.RB `` tpp ''.
+calls 
+.BR tppd (3) 
+which queues the alphanumerical pages and communicates
+with the service provider, delivering the data.
+.LP
+.B tp
+user
+message is given on stdin, teminating with a ctl-D or ``.'' on 
+a line by itself.  This is also the case with the -m option.
+-m option allows queueing of multiple users with the same
+text message.  
+.B tp
+user message... allows to have input taken to the message until
+the end of command line.
+.TP
+With the 
+.B \-v 
+flag 
+.B tp 
+displays the contents of the exchange with the 
+.B tppd
+server.   
+Note: The shell interprets the command line arguments, e.g.
+! ? * [ ]    Characters that are interpreted by the shell must
+be either escaped, or within quotes. 
+.SH OPTIONS
+.TP 20
+.B \-h 
+hostname
+specifies the host to use to be used by 
+.B TPP 
+.TP 20
+.B \-p
+specifies which port to use on the TPP server.
+server. 
+.TP 20
+.B \-v
+displays the exchange between 
+.B tp 
+and 
+.BR tppd (3).
+.TP 20
+.B \-m
+interprets all command line arguments as users 
+and reads messages on stdin, ending with EOF or a ``.''
+.B 
+.SH SEE ALSO
+.BR tppd (3).
