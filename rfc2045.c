@@ -5,7 +5,13 @@
 #include <string.h>
 #include <ctype.h>
 
-/* Content-Type: type/subtype; attribute=value; */
+#include "rfc2045.h"
+
+/* Content-Type: type/subtype; attribute=value; 
+ * returns positive when type, subtype, attibute and value all accounted for.
+ * returns zero if only some values are parsed
+ * returns negative on error
+ */
 
     int 
 parse_content_type( line, n_line, type, subtype, attribute, value, len )
@@ -24,7 +30,9 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
 	if ( !isspace( *n_line ) ) {
 	    /* bad info */
 	    return( -1 );
-	} for ( ; isspace( *n_line ); n_line++ ) {
+	} 
+	
+	for ( ; isspace( *n_line ); n_line++ ) {
 	    /* skip all but one whitespace */
 	}
 	n_line--;
@@ -34,9 +42,16 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
 	    syslog( LOG_ERR, "parse_content-type: malloc: %m" );
 	    return( -1 );
 	}
-	strcat( newline, *line );
+	strcpy( newline, *line );
+	strcat( newline, n_line );
+	free( *line );
 	*line = newline;
+	n_line = *line;
+    } else {
+        *line = strdup( n_line );
+	*len = strlen( n_line );
     }
+
 
     for ( j = n_line+13; isspace( *j ); j++ ) {
 	/* skip all whitespace */
@@ -45,7 +60,6 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
     if ( ( i = strchr( j, '/' ) ) == NULL ) {
 	return( 0 );
     }
-    printf("%s\n", j );
 
     if ( *type == NULL ) {
 	*i = '\0';
@@ -57,6 +71,8 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
     if ( ( j = strchr( i, ';' ) ) == NULL ) {
 	return( 0 );
     }
+
+
     if ( *subtype == NULL ) {
         *j = '\0';
 	*subtype = strdup( i );
@@ -67,9 +83,10 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
     for ( ; isspace( *j ); j++ ) {
 	/*skip whitespaces */
     }
-    if ( ( i = strchr( n_line, '=' ) ) == NULL ) {
+    if ( ( i = strchr( j, '=' ) ) == NULL ) {
         return( 0 );
     }
+
     if ( *attribute == NULL ) {
 	*i = '\0';
 	*attribute = strdup( j );
@@ -79,39 +96,20 @@ parse_content_type( line, n_line, type, subtype, attribute, value, len )
     if ( *i == '"' ) {
         i++;
     }
+
     if ( ( j = strchr( i, ';' ) ) == NULL ) {
 	return( 0 );
     }
+
     if ( *value == NULL ) {
         if ( *(j - 1) == '"' ) {
 	    val_prev = '"';
 	    j--;
 	}
+
 	*j = '\0';
 	*value = strdup( i );
 	*j = val_prev;
     }
     return( 1 );
 }
-
-   int
-main()
-{
-
-    char 	*line, *type, *subtype, *attribute, *value;
-    int		len, ret;
-    char	*n_line = "Content-Type: text/plain; charset=us-ascii";
-
-    len = 0;
-    line = NULL;
-    type = NULL;
-    subtype = NULL;
-    attribute = NULL;
-    value = NULL;
-    
-    ret = parse_content_type( &line, n_line, &type, &subtype, &attribute, &value, &len );
-    printf( "return = %d\n", ret );
-    
-
-}
-

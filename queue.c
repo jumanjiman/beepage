@@ -38,6 +38,8 @@
 #include "path.h"
 #include "sendmail.h"
 #include "compress.h"
+#include "rfc2045.h"
+#include "rfc822.h"
 
 
 int		queue_seq ___P(( char * ));
@@ -465,6 +467,22 @@ queue_read( file )
     int 		offset, state, once;
     int 		mime = 0;
 
+    char 		*type = NULL;
+    char 		*subtype = NULL;
+    char		*attribute = NULL;
+    char		*value = NULL;
+    char		*r_line = NULL;
+
+    char 		*t2 = NULL;
+    char 		*s2 = NULL;
+    char		*a2 = NULL;
+    char		*v2 = NULL;
+    char		*r2 = NULL;
+
+    int			len = 0;
+    int			done = 0;
+    int 		c, i;
+
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
 	exit( 1 );
@@ -515,11 +533,7 @@ queue_read( file )
     from = subj = NULL;
 
     while ( ( line = net_getline( net, NULL )) != NULL ) {
-/*
- * check if content type flag and if first char is a whitespace
- * if so, pass this line into the function that will get content type
- * info
- */
+
         if ( *line == '\0' ) {
 	    break;
 	}
@@ -566,29 +580,23 @@ queue_read( file )
 	    continue;
 	}
 	if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
-/* flag that I got a content type header, 
- * pass the line I just read into a function 
- * that will collect the important mime info
- */
-	    if (!mime) {
-		/*malformatted mail*/
+	    c = parse_content_type( &r_line, line, &type, &subtype, 
+	             &attribute, &value, &len );
+	    if ( c < 0 ) { 
+	        /* either there was a system error, or there was illegal mime
+		 * formatting.  I should probably be able to tell the diff
+		 * between the two, since if it's just bad formatting, I can
+		 * page the user and tell him that I could parse the mail, and
+		 * he needs to go read it.
+		 */
+	        printf( "FuXORD!\n");
+		mime = 0;
+	    } else if ( c == 0 ) {
+	        printf( "Okay, I need to get more...\n");
+		continue;
+	    } else if ( c > 0 ) { 
+		printf( "%s, %s, %s, %s\n", type, subtype, attribute, value );
 	    }
-	    if ( ( a = strchr( line, '/' ) ) == NULL ) {
-		/*mailformatted mail*/
-	    } 
-	    *a = '\0';
-	    b = line;
-	    for ( b += 13 ; isspace( *b ); b++ ) {
-	    }
-	    type = strdup( b );
-	    *a++ = '/';
-	    if ( ( b = strchr( line, ';' ) ) == NULL ) {
-		/*mailformatted mail*/
-		/*probably*/
-	    } 
-	    *b = '\0';
-	    subtype = strdup( a );
-	    
 	}
     }
     offset = state = 0;
@@ -606,16 +614,98 @@ queue_read( file )
     }
     free( from );
     once = 0;
-    while ( ( line = net_getline( net, NULL )) != NULL ) {
-        if ( once != 0 ) {
-	    if ( page_compress( page, &offset, &state, " ", TAP_MAXLEN ) < 0 ) {
+
+    /* Before we just start compressing lines of email, we need to check 
+     * if we are unable to display this MIME type on a text pager. (things
+     * like type=video.) We also need to check if we have a multipart MIME
+     * case where the readable message is later in the email.
+     */
+    if  ( ( mime == 0 ) || 
+	( ( mime == 1 ) && ( strcasecmp( type, "text" ) == 0 ) ) ) {
+	while ( ( line = net_getline( net, NULL )) != NULL ) {
+	    if ( once != 0 ) {
+		if ( page_compress( page, &offset, &state, " ", 
+						TAP_MAXLEN ) < 0 ) {
+		    break;
+		}
+	    } else {
+		once = 1;
+	    }
+	    if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0) {
 		break;
 	    }
-	} else {
-	    once = 1;
 	}
-	if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0 ) {
-	    break;
+    } else {
+        /* determine if this MIME type is readable at all. */
+	if ( strcasecmp( type, "multipart" ) == 0 ) {
+printf( "Multipart.\n");
+	    while ( ( line = net_getline( net, NULL )) != NULL ) {
+	        if ( done ) {
+		    break;
+		}
+		if ( strncmp( line, "--", 2 ) != 0 ) {
+	            continue;
+	        } else if ( strcmp( value, line+2 ) == 0 ) {
+	            printf( "%s is the boundary\n", line+2 );
+	  	    while ( ( line = net_getline( net, NULL )) != NULL ) {
+		        if ( done ) {
+			    break;
+			}
+	 	        if ( parse_header( line, &i ) < 0 )  {
+			    /* This part should be just like a regular
+			     * rfc822 message.
+			     */
+			    break;
+			}
+			if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
+			    c = parse_content_type( &r2, line, &t2, 
+					&s2, &a2, &v2, &len );
+			    if ( c < 0 ) {
+			        break;
+			    } else if ( c == 0 ) {
+			        /* this won't work... */
+			        continue;
+			    }
+			} else {
+			    continue;
+			}
+			if ( strcasecmp( t2, "text" ) != 0 ) {
+			    break;
+			}
+			/* skip the rest of the headers until a blank line */
+			while ( ( line = net_getline( net, NULL )) != NULL ) {
+			    if ( *line == '\0' ) {
+				break;
+			    }
+			}
+
+			while ( ( line = net_getline( net, NULL )) != NULL ) {
+			    if ( strncmp( line, "--", 2 ) == 0 ) {
+			        if ( strncmp( value, line+2, strlen( value ) ) == 0 ) {
+				    /* the end */
+				    done = 1;
+				    break;
+				}
+			    }
+			    if ( once != 0 ) {
+				if ( page_compress( page, &offset, &state, " ", 
+							    TAP_MAXLEN ) < 0 ) {
+				    break;
+				}
+			    } else {
+				once = 1;
+			    }
+			    if ( page_compress( page, &offset, &state, line, 
+							    TAP_MAXLEN ) < 0) {
+				break;
+			    }
+			}
+		    }
+	        }
+	    }
+
+	} else {
+	    printf( "I don't know how to read this type\n");
 	}
     }
         

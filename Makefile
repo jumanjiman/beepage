@@ -18,19 +18,19 @@ PIDFILE=${ETCDIR}/pid
 BEEPAGEDSYSLOG=LOG_LOCAL6
 
 # Stock compiler:
-CC=	cc
+#CC=	cc
 
 # For gcc:
-#CC=	gcc
+CC=	gcc
 # These options might work on your system:
 #OPTOPTS=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Werror
 
 # For most platforms:
-#INSTALL=	install
+INSTALL=	install
 
 # For Solaris:
-INSTALL=	/usr/ucb/install
-ADDLIBS=	-lsocket -lnsl
+#INSTALL=	/usr/ucb/install
+#ADDLIBS=	-lsocket -lnsl
 
 # To enable Kerberos v4, uncomment these lines.
 #KDEFS=	-DKRB
@@ -44,18 +44,18 @@ ADDLIBS=	-lsocket -lnsl
 #KLIBS=	-lkrb -ldes
 
 # For Solaris Kerberos v4
-KINCPATH=	-I/usr/include/kerberos
-KLIBS=	-lkrb
+#KINCPATH=	-I/usr/include/kerberos
+#KLIBS=	-lkrb
 
 # For debugging, skip modem code
-#DMODEM=	-DNOMODEM
+DMODEM=	-DNOMODEM
 
 ################ Nothing below should need editing ###################
 
 SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c \
-	compress.c rfc822.c beep.c flock.c ${KSRC}
+	compress.c rfc822.c beep.c flock.c rfc2045.c ${KSRC}
 DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
-	compress.o flock.o rfc822.o ${KOBJ}
+	compress.o flock.o rfc822.o rfc2045.o ${KOBJ}
 COBJ=	beep.o ${KOBJ}
 
 INCPATH=	-Ilibnet ${KINCPATH}
