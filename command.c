@@ -1,39 +1,42 @@
 /*
- * Copyright (c) 1995 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#include <sys/param.h>
 #include <sys/time.h>
-
-#include <fcntl.h>
-#include <stdio.h>
-#include <syslog.h>
-#include <ctype.h>
-#include <pwd.h>
+#include <sys/param.h>
 #include <netdb.h>
-#include <errno.h>
+#include <string.h>
+#include <syslog.h>
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include <net.h>
 
 #ifdef KRB
-#ifdef __svr4__
-#include <kerberos/krb.h>
-#else __svr4__
 #include <krb.h>
-#endif __svr4__
 #endif KRB
 
-#include "path.h"
+#include "binhex.h"
 #include "queue.h"
+#include "command.h"
 
-struct queue	*pq = NULL;
+struct pqueue	*pq = NULL;
 
 struct command {
     char	*c_name;
-    int		(*c_func)();
+    int		(*c_func) ___P(( NET *, int, char *[] ));
 };
 
+int	f_quit ___P(( NET *, int, char *[] ));
+int	f_noop ___P(( NET *, int, char *[] ));
+int	f_help ___P(( NET *, int, char *[] ));
+int	f_auth ___P(( NET *, int, char *[] ));
+int	f_page ___P(( NET *, int, char *[] ));
+int	f_data ___P(( NET *, int, char *[] ));
+
+    int
 f_quit( net, ac, av )
     NET		*net;
     int		ac;
@@ -43,6 +46,7 @@ f_quit( net, ac, av )
     exit( 0 );
 }
 
+    int
 f_noop( net, ac, av )
     NET		*net;
     int		ac;
@@ -52,6 +56,7 @@ f_noop( net, ac, av )
     return( 0 );
 }
 
+    int
 f_help( net, ac, av )
     NET		*net;
     int		ac;
@@ -61,6 +66,7 @@ f_help( net, ac, av )
     return( 0 );
 }
 
+    int
 f_auth( net, ac, av )
     NET		*net;
     int		ac;
@@ -117,6 +123,7 @@ f_auth( net, ac, av )
     return( 1 );
 }
 
+    int
 f_page( net, ac, av )
     NET		*net;
     int		ac;
@@ -153,6 +160,7 @@ f_page( net, ac, av )
     }
 }
 
+    int
 f_data( net, ac, av )
     NET		*net;
     int		ac;
@@ -213,20 +221,24 @@ struct command	commands[] = {
     { "AUTH",		f_auth },
     { "PAGE",		f_page },	/* set page recipient */
     { "DATA",		f_data },	/* text of the page */
-/*    { "CONFIRM",	f_confirm },	/* confirmation address */
-/*    { "QUEUE",	f_queue },	/* list paging queue's contents */
+#ifdef notdef
+    { "CONFIRM",	f_confirm },	/* confirmation address */
+    { "QUEUE",	f_queue },	/* list paging queue's contents */
+#endif notdef
 };
 
 int		ncommands = sizeof( commands ) / sizeof( commands[ 0 ] );
 char		hostname[ MAXHOSTNAMELEN ];
 
+    int
 cmdloop( fd )
     int		fd;
 {
     NET			*net;
-    int			ac, i, mask;
+    int			ac, i;
     char		**av, *line;
     struct timeval	tv;
+    extern char		*version;
 
     if (( net = net_attach( fd, 1024 * 1024 )) == NULL ) {
 	syslog( LOG_ERR, "net_attach: %m" );
@@ -237,7 +249,8 @@ cmdloop( fd )
 	syslog( LOG_ERR, "gethostname: %m" );
 	exit( 1 );
     }
-    net_writef( net, "%d TPP 1 %s TAP network interface\r\n", 200, hostname );
+    net_writef( net, "%d TPP 1 %s %s TAP network interface\r\n", 200,
+	    hostname, version );
 
     tv.tv_sec = 60 * 10;	/* 10 minutes */
     tv.tv_usec = 60 * 10;
