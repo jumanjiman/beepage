@@ -12,8 +12,16 @@
 #include <pwd.h>
 #include <errno.h>
 
+#include <net.h>
+
+#ifdef KRB
+#ifdef _svr4__
+#else __svr4__
+#include <krb.h>
+#endif __svr4__
+#endif KRB
+
 #include "path.h"
-#include "net.h"
 #include "queue.h"
 
 struct queue	*pq = NULL;
@@ -55,12 +63,16 @@ f_auth( net, ac, av )
     int		ac;
     char	*av[];
 {
+#ifdef KRB
+    KTEXT_ST	auth;
+    AUTH_DAT	ad;
+    char	instance[ INST_SZ ];
+    int		rc;
+#endif KRB
+    char	*user;
+
     if ( ac != 3 ) {
 	net_writef( net, "%d AUTH syntax error\r\n", 510 );
-	return( 1 );
-    }
-    if ( strcasecmp( "NONE", av[ 1 ] ) != 0 ) {
-	net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
 	return( 1 );
     }
     if ( pq != NULL ) {
@@ -68,12 +80,38 @@ f_auth( net, ac, av )
 	return( 1 );
     }
 
-    if (( pq = queue_init( av[ 2 ] )) == NULL ) {
-	net_writef( net, "%d User %s not permitted\r\n", 411, av[ 2 ] );
+    if ( strcasecmp( "KRB4", av[ 1 ] ) == 0 ) {
+#ifdef KRB
+	if (( auth.length = hex2bin( av[ 2 ], auth.dat )) < 0 ) {
+	    net_writef( net, "%d AUTH KRB4 authenticator corrupt\r\n", 413 );
+	    return( 1 );
+	}
+	strcpy( instance, "*" );
+	if (( rc = krb_rd_req( &auth, "rcmd", instance, 0, &ad, "" )) !=
+		RD_AP_OK ) {
+	    net_writef( net, "%d AUTH KRB4 failed: %s\r\n", 412,
+		    krb_err_txt[ rc ] );
+	    return( 1 );
+	}
+	user = ad.pname;
+#else KRB
+	net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
+	return( 1 );
+#endif KRB
+
+    } else if ( strcasecmp( "NONE", av[ 1 ] ) == 0 ) {
+	user = av[ 2 ];
+    } else {
+	net_writef( net, "%d AUTH type %s not supported\r\n", 410, av[ 1 ] );
 	return( 1 );
     }
 
-    net_writef( net, "%d AUTH as %s succeeds\r\n", 210, av[ 2 ] );
+    if (( pq = queue_init( user )) == NULL ) {
+	net_writef( net, "%d User %s not permitted\r\n", 411, user );
+	return( 1 );
+    }
+
+    net_writef( net, "%d AUTH as %s succeeds\r\n", 210, user );
     return( 0 );
 }
 
@@ -108,6 +146,7 @@ f_data( net, ac, av )
     char	*av[];
 {
     char	*line;
+    int		lenerr = 0;
 
     if ( ac != 1 ) {
 	net_writef( net, "%d Syntax error\r\n", 530 );
@@ -132,9 +171,8 @@ f_data( net, ac, av )
 	    line++;
 	}
 
-	if ( queue_line( pq, line ) < 0 ) {	/* not sure what to do */
-	    net_writef( net, "%d Queue creation error\r\n", 533 );
-	    return( 1 );
+	if ( queue_line( pq, line ) < 0 ) {
+	    lenerr = 1;
 	}
     }
     if ( line == NULL ) {	/* EOF */
@@ -142,7 +180,10 @@ f_data( net, ac, av )
 	return( -1 );
     }
 
-    /* maybe send signal to parent */
+    if ( lenerr ) {
+	net_writef( net, "%d Page is too long, will be truncated\r\n", 231 );
+	return( 1 );
+    }
 
     if ( queue_done( pq ) < 0 ) {
 	net_writef( net, "%d Can't queue message\r\n", 534 );
