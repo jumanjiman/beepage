@@ -13,12 +13,13 @@ paging-service provider; and beep, a command-line TPP client.
 
 beepaged has been tested on the following systems:
 
-	OS	Versions
-	--	--------
-	Solaris	2.6
-	Linux	RedHat 5.x
-	OpenBSD	2.3
-	SunOS	4.1.4
+    OS		Versions
+    --		--------
+    Solaris	2.6
+    Linux	RedHat 5 and higher, Mandrake 6.1, SuSE 6.3, Debian 2.1
+    OpenBSD	2.3
+    FreeBSD	3.4
+    SunOS	4.1.4
 
 Building beepage:
 
