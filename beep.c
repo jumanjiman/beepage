@@ -125,7 +125,7 @@ main( ac, av )
     }
 
     if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
+	perror( "net_getline" );
 	exit( 1 );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -170,7 +170,7 @@ main( ac, av )
 #endif KRB
 
     if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
+	perror( "net_getline" );
 	exit( 1 );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -188,7 +188,7 @@ main( ac, av )
 	    if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 
 	    if (( line = net_getline( net, NULL )) == NULL ) {
-		fprintf( stderr, "net_getline: EOF\n" );
+		perror( "net_getline" );
 		exit( 1 );
 	    }
 	    if ( verbose )	printf( "<<< %s\n", line );
@@ -206,7 +206,7 @@ main( ac, av )
 	optind++;
 
 	if (( line = net_getline( net, NULL )) == NULL ) {
-	    fprintf( stderr, "net_getline: EOF\n" );
+	    perror( "net_getline" );
 	    exit( 1 );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
@@ -223,7 +223,7 @@ main( ac, av )
     if ( verbose )	printf( ">>> DATA\n" );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
+	perror( "net_getline" );
 	exit( 1 );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -303,7 +303,7 @@ main( ac, av )
     }
 
     if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
+	perror( "net_getline" );
 	exit( 1 );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -319,7 +319,7 @@ main( ac, av )
     if ( verbose )	printf( ">>> QUIT\n" );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
+	perror( "net_getline" );
 	exit( 1 );
     }
     if ( verbose )	printf( "<<< %s\n", line );
