@@ -43,6 +43,33 @@ int		queue_seq ___P(( char * ));
 struct page	*queue_read ___P(( char * ));
 void		queue_free ___P(( struct page * ));
 
+    int 
+queue_count()
+{
+    struct srvdb	*first, *s;
+    DIR			*dirp;
+    int			i = 0;
+    struct dirent	*dp;
+
+    s = first = srvdb_next();
+
+    do {
+    	if ( ( dirp = opendir( s->s_name )) == NULL ) {
+	    printf( "opendir: %s:", s->s_name );
+	    continue;
+	}
+
+	while ( ( dp = readdir( dirp ) ) != NULL ) {
+	    if ( *dp->d_name == 'P' ) {
+	        i++;
+	    }
+	}
+	closedir( dirp );
+
+    } while ( ( s = srvdb_next() ) != first );
+
+    return( i );
+}
 
     void
 #ifdef __STDC__
@@ -67,6 +94,8 @@ queue_printf( pq, format, va_alist )
     }
     va_end( val );
 }
+
+
     struct pqueue *
 queue_init( sender, flags, net )
     char		*sender;
