@@ -5,111 +5,119 @@
 #include <string.h>
 #include <ctype.h>
 
+#include "net.h"
 #include "rfc2045.h"
 
 /* Content-Type: type/subtype; attribute=value; 
- * returns positive when type, subtype, attibute and value all accounted for.
- * returns zero if only some values are parsed
+ * returns zero when type, subtype, attibute and value all accounted for.
  * returns negative on error
  */
 
-    int 
-parse_content_type( line, n_line, type, subtype, attribute, value, len )
-    char 	**line, *n_line, **type, **subtype, **attribute, **value;
-    int		*len;
+    int
+parse_content_type( line, type, subtype, attribute, value, net )
+    char        *line, *type, *subtype, *attribute, *value;
+    NET         *net;
 {
-
-    char	*i, *j, *newline;
+    char	*nextline = NULL;
+    char 	*type, *subtype, *attribute, *value;
+    char	*j, *k;
     char	val_prev = ';';
-    int		addlen;
 
-    /* do we have some information already? */
-    if ( *line != NULL ) {
-        /* we have part of the content type already
+
+
+    /*
+     *		Parse out the subtype
+     */
+    for ( j = line+13; isspace( j ); j++ ) {
+	/* skip ahead over the "Content-Type:" and any white space */
+    }
+    
+    if ( ( k = strchr( j, '/' ) ) == NULL ) {
+	return( -1 );
+    }
+
+    *k = '\0';
+    type = strdup( j );
+    *k++ = '/';
+
+
+
+
+
+
+    /*
+     *		Parse out the subtype
+     */
+    if ( ( j = strchr( k, ';' ) ) == NULL ) {
+	return( -1 );
+    }
+    *j = '\0';
+    subtype = strdup( k );
+    *j++ = ';';
+    /* I'm hesitant to put the ++ in there... will this line have a CRLF 
+     * at the end? If not, I might go past the buffer... 
+     */
+
+
+
+
+
+
+
+    /*
+     *		Parse out the attribute
+     */
+
+    if ( ( k = strchr( j, '=' ) ) == NULL ) {
+	/* Now we need to read the next line, since the attribute and 
+	 * value might be on the next line. This is the only place where
+	 * it's legal to break to the next line, since you can't do so 
+	 * in the middle of type/subtype or attribute=value.
 	 */
-	if ( !isspace( *n_line ) ) {
-	    /* bad info */
+	nextline = net_getline( net, NULL );
+	if ( ! isspace( *nextline ) ) {
 	    return( -1 );
-	} 
-	
-	for ( ; isspace( *n_line ); n_line++ ) {
-	    /* skip all but one whitespace */
 	}
-	n_line--;
 
-	addlen = strlen( n_line );
-	if (( newline = (char *)malloc( *len + addlen ) ) == NULL ) {
-	    syslog( LOG_ERR, "parse_content-type: malloc: %m" );
-	    return( -2 );
+	j = nextline;
+	if ( ( k = strchr( j, '=' ) ) == NULL ) {
+	    return( -1 );
 	}
-	strcpy( newline, *line );
-	strcat( newline, n_line );
-	free( *line );
-	*line = newline;
-	n_line = *line;
-    } else {
-        *line = strdup( n_line );
-	*len = strlen( n_line );
+
     }
-
-
-    for ( j = n_line+13; isspace( *j ); j++ ) {
-	/* skip all whitespace */
-    }
-
-    if ( ( i = strchr( j, '/' ) ) == NULL ) {
-	return( 0 );
-    }
-
-    if ( *type == NULL ) {
-	*i = '\0';
-	*type = strdup( j );
-	*i = '/';
-    }
-    i++;
-
-    if ( ( j = strchr( i, ';' ) ) == NULL ) {
-	return( 0 );
-    }
-
-
-    if ( *subtype == NULL ) {
-        *j = '\0';
-	*subtype = strdup( i );
-	*j = ';';
-    }
-    j++;
 
     for ( ; isspace( *j ); j++ ) {
-	/*skip whitespaces */
-    }
-    if ( ( i = strchr( j, '=' ) ) == NULL ) {
-        return( 0 );
+	/* skip spaces */
     }
 
-    if ( *attribute == NULL ) {
-	*i = '\0';
-	*attribute = strdup( j );
-	*i = '=';
-    }
-    i++;
-    if ( *i == '"' ) {
-        i++;
-    }
+    *k = '\0';
+    attribute = strdup( j );
+    *k = '=';
+    k++;
 
-    if ( ( j = strchr( i, ';' ) ) == NULL ) {
-	return( 0 );
-    }
 
-    if ( *value == NULL ) {
-        if ( *(j - 1) == '"' ) {
-	    val_prev = '"';
-	    j--;
-	}
 
-	*j = '\0';
-	*value = strdup( i );
-	*j = val_prev;
+
+
+    /* 
+     *    parse out the value 
+     */
+
+    if ( ( j = strchr( k, ';' ) ) == NULL ) {
+	return( -1 );
     }
-    return( 1 );
+    if ( *(j - 1) == '"' ) {
+	val_prev = '"';
+	j--;
+    }
+    if ( *k == '"' ) {
+	k++;
+    }
+    
+    *j = '\0';
+    value = strdup( k );
+    *j = val_prev;
+
+
+    return( 0 );
 }
