@@ -27,7 +27,7 @@ main( ac, av )
     int			ac;
     char		*av[];
 {
-    char		*prog, buf[ 256 ], hostname[ 256 ], *line, *to, *from;
+    char		*prog, hostname[ 256 ], *line, *from, buf[ 1024 ];
     int			c, err = 0, s, i;
     unsigned short	port = 0;
 #ifdef KRB
@@ -76,24 +76,6 @@ main( ac, av )
     if ( err || optind == ac || ( multiple == 0 && optind + 1 == ac )) {
 	fprintf( stderr, "Usage:\t%s [ -v ] user message ...\n", prog );
 	exit( 1 );
-    }
-
-    if ( multiple ) {
-	/* open the connection first? */
-	fprintf( stderr, "%s: can't do that yet\n", prog );
-	exit( 1 );
-    } else {
-	buf[ 0 ] = '\0';
-	for ( to = av[ optind++ ]; optind < ac; optind++ ) {
-	    if ( strlen( buf ) + strlen( av[ optind ] ) > sizeof( buf )) {
-		fprintf( stderr, "%s: message is too long\n" );
-		exit( 1 );
-	    }
-	    strcat( buf, av[ optind ] );
-	    if ( optind != ac ) {
-		strcat( buf, " " );
-	    }
-	}
     }
 
     /* look up the port */
@@ -193,20 +175,41 @@ main( ac, av )
 	exit( 1 );
     }
 
-    if ( net_writef( net, "PAGE %s\r\n", to ) < 0 ) {
-	perror( "net_writef" );
-	exit( 1 );
-    }
-    if ( verbose )	printf( ">>> PAGE %s\n", to );
+    if ( multiple ) {
+	for (; optind < ac; optind++ ) {
+	    if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
+		perror( "net_writef" );
+		exit( 1 );
+	    }
+	    if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	fprintf( stderr, "net_getline: EOF\n" );
-	exit( 1 );
-    }
-    if ( verbose )	printf( "<<< %s\n", line );
-    if ( *line != '2' ) {
-	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	    if (( line = net_getline( net, NULL )) == NULL ) {
+		fprintf( stderr, "net_getline: EOF\n" );
+		exit( 1 );
+	    }
+	    if ( verbose )	printf( "<<< %s\n", line );
+	    if ( *line != '2' ) {
+		fprintf( stderr, "%s\n", line );
+		exit( 1 );
+	    }
+	}
+    } else {
+	if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
+	    perror( "net_writef" );
+	    exit( 1 );
+	}
+	if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
+	optind++;
+
+	if (( line = net_getline( net, NULL )) == NULL ) {
+	    fprintf( stderr, "net_getline: EOF\n" );
+	    exit( 1 );
+	}
+	if ( verbose )	printf( "<<< %s\n", line );
+	if ( *line != '2' ) {
+	    fprintf( stderr, "%s\n", line );
+	    exit( 1 );
+	}
     }
 
     if ( net_writef( net, "DATA\r\n" ) < 0 ) {
@@ -225,11 +228,75 @@ main( ac, av )
 	exit( 1 );
     }
 
-    if ( net_writef( net, "%s\r\n.\r\n", buf ) < 0 ) {
-	perror( "net_writef" );
-	exit( 1 );
+    if ( multiple ) {
+#define ST_BEGIN	0
+#define ST_TRUNC	1
+	int		state = ST_BEGIN;
+
+	while ( fgets( buf, sizeof( buf ), stdin ) != NULL ) {
+	    if ( state == ST_BEGIN ) {
+		if ( *buf == '.' ) {
+		    if ( strcmp( buf, ".\n" ) == 0 ) {
+			break;	/* same as EOF */
+		    } else {
+			if ( net_writef( net, "." ) < 0 ) {
+			    perror( "net_writef" );
+			    exit( 1 );
+			}
+			if ( verbose )	printf( ">>> ." );
+		    }
+		} else {
+		    if ( verbose )	printf( ">>> " );
+		}
+	    }
+
+	    if ( buf[ strlen( buf ) - 1 ] == '\n' ) {
+		state = ST_BEGIN;
+		buf[ strlen( buf ) - 1 ] = '\0';
+		if ( net_writef( net, "%s\r\n", buf ) < 0 ) {
+		    perror( "net_writef" );
+		    exit( 1 );
+		}
+		if ( verbose )	printf( "%s\n", buf );
+	    } else {
+		state = ST_TRUNC;
+		if ( net_writef( net, "%s", buf ) < 0 ) {
+		    perror( "net_writef" );
+		    exit( 1 );
+		}
+		if ( verbose )	printf( "%s", buf );
+	    }
+	}
+	if ( net_writef( net, "\r\n.\r\n" ) < 0 ) {
+	    perror( "net_writef" );
+	    exit( 1 );
+	}
+	if ( verbose )	printf( ">>> .\n" );
+    } else {
+	if ( verbose )	printf( ">>> " );
+	if ( *av[ optind ] == '.' ) {
+	    if ( net_writef( net, "." ) < 0 ) {
+		perror( "net_writef" );
+		exit( 1 );
+	    }
+	    if ( verbose )	printf( "." );
+	}
+	for (; optind < ac; optind++ ) {
+	    if ( optind < ac - 1 ) {
+		if ( net_writef( net, "%s ", av[ optind ] ) < 0 ) {
+		    perror( "net_writef" );
+		    exit( 1 );
+		}
+		if ( verbose )	printf( "%s ", av[ optind ] );
+	    } else {
+		if ( net_writef( net, "%s\r\n.\r\n", av[ optind ] ) < 0 ) {
+		    perror( "net_writef" );
+		    exit( 1 );
+		}
+		if ( verbose )	printf( "%s\n>>> .\n", av[ optind ] );
+	    }
+	}
     }
-    if ( verbose )	printf( ">>> %s\n>>> .\n", buf );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	fprintf( stderr, "net_getline: EOF\n" );
