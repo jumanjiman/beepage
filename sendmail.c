@@ -10,7 +10,7 @@
 
 extern char		*maildomain;
 
-char			*sendmailargv[] = { "sendmail", "-f<>", "-odb", 0, 0 };
+char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
 
 sendmail( from, to, message )
     char		*from;
@@ -65,8 +65,8 @@ sendmail( from, to, message )
 	    return( -1 );
 	}
 	fprintf( fp, "To: %s\n", buf );
-	fprintf( fp, "From: tppd (Text Pager Protocol Daemon)\n" );
-	fprintf( fp, "Subject: confirmed: page sent from %s\n\n", from );
+	fprintf( fp, "From: Text-Page-Confirmed:;\n" );
+	fprintf( fp, "Subject: page sent from %s\n\n", from );
 	fprintf( fp, "%s\n", message );
 	fclose( fp );
 	syslog( LOG_INFO, "sendmail confirmation to %s", buf );
