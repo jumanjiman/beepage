@@ -10,4 +10,7 @@ struct modem {
     NET			*m_net;
 };
 
+#define TAP_OVERHEAD	8
+#define TAP_MAXLEN	240
+
 struct modem	*modem_find();
