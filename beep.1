@@ -1,82 +1,102 @@
-'\" t
-.\" This is a comment. The line above indicates to "man" that "tbl"
-.\" should be run on the input. The 4th section has an example of
-.\" tbl macros used in a man page.
-.TH TP "1" "August 1997" "Author" "Section Title"
-.SH TP 
+.TH TP 1 Sept98 RSUG
+.SH NAME 
 .B tp
-\-  send alphanumeric pages, using tp protocol. 
+\-  send alpha-numeric pages, using text page protocol
 .SH SYNOPSIS
 .B tp 
-user...
-.br
-.B tp 
 [
-.B \-v
+.I options
 ] 
-[
-.B \-m 
-] user ...
+.I user
 .br
 .B tp 
 [
-.B \-v 
-] user 
+.I options
+] 
+.B \-m 
+.I user
+\&.\|.\|.
+.br
+.B tp 
+[
+.I options
+]
+.I user 
 .I message
-.B .\|.\|.
+...
 .br
 .SH DESCRIPTION
-.B tp 
-is a program to queue alphanumerical pages from the command line.  When 
-.B tp 
-is started it connects  to a 
-TPP server, by default the hostname 
+.B tp
+queues alpha-numeric pages to a TPP server, by default the hostname
 .RB `` tpp ''.
-calls 
-.BR tppd (3) 
-which queues the alphanumerical pages and communicates
-with the service provider, delivering the data.
+The server,
+.BR tppd (8),
+accepts page requests and later delivers the data to a paging service
+provider.
 .LP
+If
 .B tp
-user
-message is given on stdin, teminating with a ctl-D or ``.'' on 
-a line by itself.  This is also the case with the -m option.
--m option allows queueing of multiple users with the same
-text message.  
+is invoked with only one command line argument or with
+.BR \-m ,
+all command line arguments are interpreted as
+.IR user s
+and the message is given on stdin, terminated by EOF or ``.'' on a line
+by itself.  Otherwise,
 .B tp
-user message... allows to have input taken to the message until
-the end of command line.
-.TP
-With the 
-.B \-v 
-flag 
-.B tp 
-displays the contents of the exchange with the 
-.B tppd
-server.   
-Note: The shell interprets the command line arguments, e.g.
-! ? * [ ]    Characters that are interpreted by the shell must
-be either escaped, or within quotes. 
+interprets it's first argument as a
+.IR user ,
+and the remaining command line arguments as the message.  Note: The
+shell interprets the command line arguments, e.g.  !  ? * [ ].
+Characters that are special to the shell must be escaped or quoted.
 .SH OPTIONS
 .TP 20
-.B \-h 
-hostname
-specifies the host to use to be used by 
-.B TPP 
-.TP 20
-.B \-p
-specifies which port to use on the TPP server.
-server. 
+.B \-V
+displays the version of
+.B tp
+and exits.
 .TP 20
 .B \-v
-displays the exchange between 
-.B tp 
-and 
-.BR tppd (3).
+display the protocol exchange with the TPP server.
+.TP 20
+.BI \-h\  hostname
+specifies the TPP server, by default ``tpp''.
+.TP 20
+.BI \-p\  port
+specifies TPP port, by default 6661.
 .TP 20
 .B \-m
-interprets all command line arguments as users 
-and reads messages on stdin, ending with EOF or a ``.''
-.B 
+interprets command line arguments as multiple users and reads messages
+on stdin, ending with EOF or a ``.''.
+.TP 20
+.B \-q
+quiet mode, displays only errors.
+.SH EXAMPLES
+In this example, user ``bob'' will recieve the message ``you
+suck, bob!'':
+.sp
+.RS
+.nf
+	example% tp bob you suck, bob\\!
+	Page queued on tpp.
+	example%
+.fi
+.RE
+.sp
+Note that the ``!'' must be escaped in many shells.
+.LP
+In the following example, users ``bob'' and ``betty'' will receive the message
+``you are both big losers, bob and betty!'':
+.sp
+.RS
+.nf
+	example% tp -m bob betty
+	you are both big losers, bob and betty!
+	.
+	Page queued on tpp.
+	example%
+.fi
+.RE
+.sp
+Since the ``!'' is taken as stdin, no escape is necessary.
 .SH SEE ALSO
-.BR tppd (3).
+.BR tppd (8).
