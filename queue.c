@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
@@ -216,23 +217,62 @@ queue_recipient( q, name )
 queue_seq( service )
     char		*service;
 {
-    char		*p, buf[ MAXPATHLEN ];
-    int			fd;
-    unsigned		len;
-    int			seq;
 
-    sprintf( buf, "%s/.seq", service );
-    if (( fd = open( buf, O_RDWR|O_CREAT, 0600 )) < 0 ) {
+    char		*p, buf[ 20 ], tmpfile[ MAXPATHLEN ];
+    char		lockfile[ MAXPATHLEN ], seqfile[ MAXPATHLEN ];
+    int			fd, lockfd;
+    unsigned		len;
+    int			seq, pid, i;
+    int			rc = 0;
+
+    pid = getpid();
+
+    sprintf( lockfile, "%s/.seq.lock", service );
+
+    sprintf( tmpfile, "%s/.seq.lock.%d", service, pid );
+    sprintf( seqfile, "%s/.seq", service );
+
+    if (( lockfd = open( tmpfile, O_WRONLY|O_CREAT|O_EXCL, 0600 )) < 0 ) {
+	syslog( LOG_ERR, "queue_seq, open: %m");
 	return( -1 );
     }
-    if ( flock( fd, LOCK_EX ) < 0 ) {
+
+    for ( i = 0; i < 10; i++ ) {
+	if ( ( rc = link( tmpfile, lockfile ) ) == 0 ) {
+	    break;
+	}
+	syslog( LOG_INFO, "queue_seq: link: %m");
+	sleep( 1 );
+    }
+
+    if ( unlink( tmpfile ) < 0 ) {
+	syslog( LOG_WARNING, "queue_seq: unlink: %s: %m", tmpfile );
+    }
+
+    if ( rc < 0 ) {
+	syslog( LOG_ERR, "queue_seq: cannot get lock after 10 attempts: %m");
+	if ( close( lockfd ) < 0 ) {
+	    syslog( LOG_ERR, "queue_seq: close: %m" );
+	}
 	return( -1 );
+    }
+
+    if (( fd = open( seqfile, O_RDWR|O_CREAT, 0600 )) < 0 ) {
+	syslog( LOG_ERR, "queue_seq, open: %m");
+	goto cleanup2;
     }
 
     seq = 0;
     if (( len = read( fd, buf, sizeof( buf ))) < 0 ) {
-	return( -1 );
+	syslog( LOG_ERR, "queue_seq, read: %m");
+	goto cleanup3;
     }
+ 
+    if ( close( fd ) < 0 ) {
+	syslog( LOG_ERR, "queue_seq: close: %m" );
+        goto cleanup2;
+    }
+
     for ( p = buf; len > 0; len--, p++ ) {
 	if ( *p < '0' || *p > '9' ) {
 	    break;
@@ -241,16 +281,44 @@ queue_seq( service )
     }
 
     seq += 1;
+
     sprintf( buf, "%d\n", seq );
-    if ( lseek( fd, (off_t)0, SEEK_SET ) < 0 ) {
-	return( -1 );
-    }
+
     len = strlen( buf );
-    if ( write( fd, buf, len ) != len ) {
-	return( -1 );
+    if ( write( lockfd, buf, len ) != len ) {
+	syslog( LOG_ERR, "queue_seq: write: %m" );
+	goto cleanup2;
     }
-    close( fd );
+
+    if ( close( lockfd ) < 0 ) {
+	syslog( LOG_ERR, "queue_seq: close: %m" );
+        goto cleanup1;
+    }
+
+    if ( rename( lockfile, seqfile ) < 0 ) {
+	syslog( LOG_ERR, "queue_seq: rename: %m" );
+        goto cleanup1;
+    }
+
     return( seq );
+
+
+cleanup3:
+    if ( close( fd ) < 0 ) {
+        syslog( LOG_ERR, "queue_seq: close: %m" );
+    }
+
+cleanup2:
+    if ( close( lockfd ) < 0 ) {
+        syslog( LOG_ERR, "queue_seq: close: %m" );
+    }
+
+cleanup1:
+    if ( unlink( lockfile ) < 0 ) {
+	syslog( LOG_ERR, "queue_seq: unlink: %s: %m", lockfile );
+    }
+
+    return( -1 );
 }
 
 /* make queue files */
