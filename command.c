@@ -325,8 +325,8 @@ int		ncommands = sizeof( commands ) / sizeof( commands[ 0 ] );
 char		hostname[ MAXHOSTNAMELEN ];
 
     int
-cmdloop( fd )
-    int		fd;
+cmdloop( fd, max_queue_size )
+    int		fd, max_queue_size;
 {
     NET			*net;
     int			ac, i;
@@ -343,6 +343,16 @@ cmdloop( fd )
 	syslog( LOG_ERR, "gethostname: %m" );
 	exit( 1 );
     }
+    /* Do a queue Check. Are we maxxed out? */
+    if ( max_queue_size != 0 ) {
+	if ( queue_count() >= max_queue_size) {
+	    net_writef( net, "%d TPP 1 %s %s TAP network interface queue maxxed\r\n",
+		502, hostname, version );
+	    syslog( LOG_WARNING, "Queue exceeds maximum queue size" );
+	    return( 0 );
+	}
+    }
+
     net_writef( net, "%d TPP 1 %s %s TAP network interface\r\n", 200,
 	    hostname, version );
 
