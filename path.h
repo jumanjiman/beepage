@@ -5,6 +5,7 @@
 
 #define _PATH_USRDB	"/usr/local/etc/tppd.users"
 #define _PATH_SRVDB	"/usr/local/etc/tppd.services"
+#define _PATH_PIDFILE	"/usr/local/etc/tppd.pid"
 
 #define _PATH_SPOOL	"/var/spool/tppd"
 #define _PATH_SENDMAIL	"/usr/lib/sendmail"
