@@ -50,7 +50,7 @@ main( ac, av )
 	prog++;
     }
 
-    while (( c = getopt( ac, av, "vmh:" )) != EOF ) {
+    while (( c = getopt( ac, av, "vmh:p:" )) != EOF ) {
 	switch ( c ) {
 	case 'v' :	/* verbose */
 	    verbose++;
