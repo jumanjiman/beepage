@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <syslog.h>
 
-#include <net.h>
+#include <snet.h>
 #include "queue.h"
 #include "rfc2045.h"
 #include "rfc822.h"
@@ -170,8 +170,8 @@ dl_free( d_head )
  *
  */
     int
-read_headers( net, from, subj, type, subtype, attribute, value, mime )
-    NET		*net;
+read_headers( sn, from, subj, type, subtype, attribute, value, mime )
+    SNET	*sn;
     char	**from, **subj, **type, **subtype, **attribute, **value;
     int		*mime;
 {
@@ -180,7 +180,7 @@ read_headers( net, from, subj, type, subtype, attribute, value, mime )
 
     *mime = 0;
 
-    while ( ( line = net_getline( net, NULL )) != NULL ) {
+    while ( ( line = snet_getline( sn, NULL )) != NULL ) {
 
         if ( *line == '\0' ) {
             break;
@@ -236,7 +236,7 @@ read_headers( net, from, subj, type, subtype, attribute, value, mime )
         if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
 	    *mime = 1;
             if ( parse_content_type( line, &type, &subtype,
-                                    &attribute, &value, net ) < 0 ) {
+                                    &attribute, &value, sn ) < 0 ) {
                 return( 0 );
             }
 

@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include <dirent.h>
 
-#include <net.h>
+#include <snet.h>
 
 #include "compat.h"
 #include "command.h"

@@ -7,7 +7,7 @@ struct modem {
     char		*m_path;
     struct modem	*m_next;
     pid_t		m_pid;
-    NET			*m_net;
+    SNET		*m_net;
 };
 
 #define TAP_OVERHEAD	8

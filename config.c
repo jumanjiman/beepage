@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <net.h>
+#include <snet.h>
 
 #include "config.h"
 #include "modem.h"
@@ -64,7 +64,7 @@ srvdb_free()
 srvdb_read( path )
     char	*path;
 {
-    NET			*net;
+    SNET		*sn;
     struct srvdb	*s;
     char		**av, *line;
     int			ac, lino = 0;
@@ -73,12 +73,12 @@ srvdb_read( path )
 	srvdb_free();
     }
 
-    if (( net = net_open( path, O_RDONLY, 0, 0 )) == NULL ) {
+    if (( sn = snet_open( path, O_RDONLY, 0, 0 )) == NULL ) {
 	perror( path );
 	return( -1 );
     }
 
-    while (( line = net_getline( net, NULL )) != NULL ) {
+    while (( line = snet_getline( sn, NULL )) != NULL ) {
 	lino++;
 	if (( ac = argcargv( line, &av )) < 0 ) {
 	    perror( "argcargv" );
@@ -124,7 +124,7 @@ srvdb_read( path )
 	srvdb = s;
     }
 
-    return( net_close( net ));
+    return( snet_close( sn ));
 }
 
     void
@@ -241,7 +241,7 @@ usrdb_free()
 usrdb_read( path )
     char	*path;
 {
-    NET			*net;
+    SNET		*sn;
     struct usrdb	*u;
     struct srvdb	*s;
     char		**av, *line;
@@ -252,12 +252,12 @@ usrdb_read( path )
 	usrdb_free();
     }
 
-    if (( net = net_open( path, O_RDONLY, 0, 0 )) == NULL ) {
+    if (( sn = snet_open( path, O_RDONLY, 0, 0 )) == NULL ) {
 	perror( path );
 	return( -1 );
     }
 
-    while (( line = net_getline( net, NULL )) != NULL ) {
+    while (( line = snet_getline( sn, NULL )) != NULL ) {
 	lino++;
 	if (( ac = argcargv( line, &av )) < 0 ) {
 	    perror( "argcargv" );
@@ -316,8 +316,8 @@ usrdb_read( path )
 	usrdb = u;
     }
 
-    /* check for net_error */
-    return( net_close( net ));
+    /* check for snet_error */
+    return( snet_close( sn ));
 }
 
     void
@@ -419,7 +419,7 @@ grpdb_verify( grpfile )
 grpdb_read( path )
     char        *path;
 {
-    NET                 *net;
+    SNET                *sn;
     struct grpdb        *g;
     struct grpdb_mem	*gm;
     struct stat		st;
@@ -431,12 +431,12 @@ grpdb_read( path )
 	grpdb_free();
     }
 
-    if (( net = net_open( path, O_RDONLY, 0, 0 )) == NULL ) {
+    if (( sn = snet_open( path, O_RDONLY, 0, 0 )) == NULL ) {
 	perror( path );
 	return( -1 );
     }
 
-    while (( line = net_getline( net, NULL )) != NULL ) {
+    while (( line = snet_getline( sn, NULL )) != NULL ) {
 	lino++;
 	if (( ac = argcargv( line, &av )) < 0 ) {
 	    perror( "argcargv" );
@@ -508,7 +508,7 @@ grpdb_read( path )
     }
 
     if  ( grpdb_verify( path ) < 0 ) {
-    	return ( -1 );
+    	return( -1 );
     }
-    return ( net_close ( net ));
+    return( snet_close( sn ));
 }

@@ -37,7 +37,7 @@ struct page {
 
 int		queue_count ___P(( void ));
 void		queue_printf ___P(( struct pqueue *, char *, ... ));
-struct pqueue	*queue_init ___P(( char *, int, NET * ));
+struct pqueue	*queue_init ___P(( char *, int, SNET * ));
 void		queue_check ___P(( struct sigaction *, struct sigaction * ));
 int		queue_recipient ___P(( struct pqueue *, char * ));
 int		queue_create ___P(( struct pqueue * ));

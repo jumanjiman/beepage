@@ -28,7 +28,7 @@
 #include <varargs.h>
 #endif __STDC__
 
-#include <net.h>
+#include <snet.h>
 
 #include "compat.h"
 
@@ -100,10 +100,10 @@ queue_printf( pq, format, va_alist )
 
 
     struct pqueue *
-queue_init( sender, flags, net )
+queue_init( sender, flags, sn )
     char		*sender;
     int			flags;
-    NET			*net;
+    SNET		*sn;
 {
     struct pqueue	*q;
     int			sinlen;
@@ -125,7 +125,7 @@ queue_init( sender, flags, net )
 
     memset( &q->q_sin, 0, sizeof( struct sockaddr_in ));
     sinlen = sizeof( struct sockaddr );
-    if ( getpeername( net->nh_fd, (struct sockaddr *)&q->q_sin, &sinlen ) < 0) {
+    if ( getpeername( sn->sn_fd, (struct sockaddr *)&q->q_sin, &sinlen ) < 0) {
 	syslog( LOG_ERR, "getsockname: %m" );
 	free( q->q_sender );
 	free( q );
@@ -146,7 +146,7 @@ queue_recipient( q, name )
     struct pqueue	*q;
     char		*name;
 {
-    NET			*net;
+    SNET		*sn;
     int 		ret;
     char 		*line;
     struct usrdb	*u;
@@ -163,11 +163,11 @@ queue_recipient( q, name )
 
 	for ( gm = g->g_mbr; gm != NULL; gm = gm->gm_next ) {
 	    if ( gm->gm_flags & G_FILENAME ) {
-		if (( net = net_open( gm->gm_name, O_RDONLY, 0, 0 )) == NULL ) {
+		if (( sn = snet_open( gm->gm_name, O_RDONLY, 0, 0 )) == NULL ) {
 		    syslog( LOG_NOTICE, "%s: %m", gm->gm_name );
 		    return( -1 );
 		}
-		while (( line = net_getline( net, NULL )) != NULL ) {
+		while (( line = snet_getline( sn, NULL )) != NULL ) {
 		    if (( line[ 0 ] == '#' ) || ( line[ 0 ] == '\0' )) {
 			continue;
 		    }
@@ -175,8 +175,8 @@ queue_recipient( q, name )
 			return( ret );
 		    }
 		}
-		if ( net_close( net ) < 0 ) {
-		    syslog( LOG_ERR, "net_close: %m" );
+		if ( snet_close( sn ) < 0 ) {
+		    syslog( LOG_ERR, "snet_close: %m" );
 		    return( -1 );
 	   	}
 	    } else {
@@ -464,7 +464,7 @@ queue_read( file )
     struct page		*page;
     char		*a, *b, *line, *at, *from, *subj;
     char		*type, *subtype, *attribute, *value, *boundary;
-    NET			*net;
+    SNET		*sn;
     int 		offset, state;
     int 		mime = 0;
     int			mailerr = 0;
@@ -477,12 +477,12 @@ queue_read( file )
     }
     page->p_flags = 0;
 
-    if (( net = net_open( file, O_RDONLY, 0, 0 )) == NULL ) {
-        perror( "net_open" );
+    if (( sn = snet_open( file, O_RDONLY, 0, 0 )) == NULL ) {
+        perror( "snet_open" );
 	return( NULL );
     }
 
-    if ( ( line = net_getline( net, NULL )) != NULL ) {
+    if ( ( line = snet_getline( sn, NULL )) != NULL ) {
         if ( *line != 'F' ) {
 	    syslog( LOG_ERR, "error in queue file!" );
 	    return( NULL );
@@ -496,7 +496,7 @@ queue_read( file )
     } else {
 	return( NULL );
     }
-    if ( ( line = net_getline( net, NULL )) != NULL ) {
+    if ( ( line = snet_getline( sn, NULL )) != NULL ) {
         if ( *line != 'T' ) {
 	    syslog( LOG_ERR, "error in queue file!" );
 	    return( NULL );
@@ -511,7 +511,7 @@ queue_read( file )
 	return( NULL );
     }
 
-    if ( ( line = net_getline( net, NULL )) != NULL ) {
+    if ( ( line = snet_getline( sn, NULL )) != NULL ) {
         if ( *line != 'M' ) {
 	    syslog( LOG_ERR, "error in queue file!" );
 	    return( NULL );
@@ -520,7 +520,7 @@ queue_read( file )
 
     from = subj = NULL;
 
-    if ( read_headers( net, &from, &subj, &type, &subtype, 
+    if ( read_headers( sn, &from, &subj, &type, &subtype, 
 					&attribute, &value, &mime ) < 0 ) { 
         exit( -1 );
     }
@@ -548,12 +548,12 @@ queue_read( file )
        ( ( strcasecmp( type, "text" ) == 0 ) &&
          ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
 
-	while ( ( line = net_getline( net, NULL )) != NULL ) {
+	while ( ( line = snet_getline( sn, NULL )) != NULL ) {
 	    if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0) {
 		break;
 	    }
 	}
-	net_close( net );
+	snet_close( sn );
 	return( page );
     }
 
@@ -570,7 +570,7 @@ queue_read( file )
 	
 
 	/* find the boundaries */
-	while ( ( line = net_getline( net, NULL )) != NULL ) {
+	while ( ( line = snet_getline( sn, NULL )) != NULL ) {
 
 	    if ( ( strncmp( line, "--", 2 ) == 0 ) && 
 		 ( strncmp( boundary, line+2, strlen( boundary ) ) == 0 ) ) {
@@ -583,7 +583,7 @@ queue_read( file )
 		    break;
 		}
 		 
-		if ( read_headers( net, &from, &subj, &type, &subtype,
+		if ( read_headers( sn, &from, &subj, &type, &subtype,
 					    &attribute, &value, &mime ) < 0 ) {
 		    exit( -1 );
 		}
@@ -591,7 +591,7 @@ queue_read( file )
 		   ( ( strcasecmp( type, "text" ) == 0 ) && 
 		     ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
 
-		    while ( ( line = net_getline( net, NULL )) != NULL ) {
+		    while ( ( line = snet_getline( sn, NULL )) != NULL ) {
 			if ( strncmp( line, "--", 2 ) == 0 ) {
 			    if ( strncmp( boundary, line+2, strlen(boundary) ) 
 									== 0) {
@@ -612,7 +612,7 @@ queue_read( file )
 	    "Unreadable message. Please check your email", TAP_MAXLEN );
 
     theend:
-    net_close( net );
+    snet_close( sn );
     return( page );
 }
 

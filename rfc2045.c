@@ -5,7 +5,7 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "net.h"
+#include "snet.h"
 #include "rfc2045.h"
 
 /* Content-Type: type/subtype; attribute=value; 
@@ -14,9 +14,9 @@
  */
 
     int
-parse_content_type( line, type, subtype, attribute, value, net )
+parse_content_type( line, type, subtype, attribute, value, sn )
     char        *line, ***type, ***subtype, ***attribute, ***value;
-    NET         *net;
+    SNET        *sn;
 {
     char	*nextline = NULL;
     char	*j, *k;
@@ -74,7 +74,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
 	 * it's legal to break to the next line, since you can't do so 
 	 * in the middle of type/subtype or attribute=value.
 	 */
-	nextline = net_getline( net, NULL );
+	nextline = snet_getline( sn, NULL );
 	if ( ! isspace( *nextline ) ) {
 	    return( -1 );
 	}

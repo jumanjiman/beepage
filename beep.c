@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <sysexits.h>
 
-#include <net.h>
+#include <snet.h>
 
 #include "binhex.h"
 
@@ -54,7 +54,7 @@ main( ac, av )
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
-    NET			*net;
+    SNET		*sn;
     int			verbose = 0, multiple = 0, quiet = 0;
     extern char		*optarg;
     extern int		optind;
@@ -146,13 +146,13 @@ main( ac, av )
 	    continue;
 	}
 
-	if (( net = net_attach( s, 1024 * 1024 )) == NULL ) {
-	    perror( "net_attach" );
+	if (( sn = snet_attach( s, 1024 * 1024 )) == NULL ) {
+	    perror( "snet_attach" );
 	    exit( EX_OSERR );
 	}
 
-	if (( line = net_getline( net, NULL )) == NULL ) {
-	    perror( "net_getline" );
+	if (( line = snet_getline( sn, NULL )) == NULL ) {
+	    perror( "snet_getline" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
@@ -187,14 +187,14 @@ main( ac, av )
 	}
     } else {
 	bin2hex( auth.dat, hexktext, auth.length );
-	if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
-	    perror( "net_writef" );
+	if ( snet_writef( sn, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
+	    perror( "snet_writef" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
 
-	if (( line = net_getline( net, NULL )) == NULL ) {
-	    perror( "net_getline" );
+	if (( line = snet_getline( sn, NULL )) == NULL ) {
+	    perror( "snet_getline" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
@@ -208,14 +208,14 @@ main( ac, av )
 	fprintf( stderr, "%s: who are you?\n", prog );
 	exit( EX_CONFIG );
     }
-    if ( net_writef( net, "AUTH NONE %s\r\n", pw->pw_name ) < 0 ) {
-	perror( "net_writef" );
+    if ( snet_writef( sn, "AUTH NONE %s\r\n", pw->pw_name ) < 0 ) {
+	perror( "snet_writef" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> AUTH NONE %s\n", pw->pw_name );
 
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	perror( "net_getline" );
+    if (( line = snet_getline( sn, NULL )) == NULL ) {
+	perror( "snet_getline" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -233,14 +233,14 @@ authdone:
 
     if ( multiple ) {
 	for (; optind < ac; optind++ ) {
-	    if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
-		perror( "net_writef" );
+	    if ( snet_writef( sn, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
+		perror( "snet_writef" );
 		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 
-	    if (( line = net_getline( net, NULL )) == NULL ) {
-		perror( "net_getline" );
+	    if (( line = snet_getline( sn, NULL )) == NULL ) {
+		perror( "snet_getline" );
 		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( "<<< %s\n", line );
@@ -250,15 +250,15 @@ authdone:
 	    }
 	}
     } else {
-	if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
-	    perror( "net_writef" );
+	if ( snet_writef( sn, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
+	    perror( "snet_writef" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 	optind++;
 
-	if (( line = net_getline( net, NULL )) == NULL ) {
-	    perror( "net_getline" );
+	if (( line = snet_getline( sn, NULL )) == NULL ) {
+	    perror( "snet_getline" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
@@ -268,14 +268,14 @@ authdone:
 	}
     }
 
-    if ( net_writef( net, "DATA\r\n" ) < 0 ) {
-	perror( "net_writef" );
+    if ( snet_writef( sn, "DATA\r\n" ) < 0 ) {
+	perror( "snet_writef" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> DATA\n" );
 
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	perror( "net_getline" );
+    if (( line = snet_getline( sn, NULL )) == NULL ) {
+	perror( "snet_getline" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -295,8 +295,8 @@ authdone:
 		    if ( strcmp( buf, ".\n" ) == 0 ) {
 			break;	/* same as EOF */
 		    } else {
-			if ( net_writef( net, "." ) < 0 ) {
-			    perror( "net_writef" );
+			if ( snet_writef( sn, "." ) < 0 ) {
+			    perror( "snet_writef" );
 			    exit( EX_IOERR );
 			}
 			if ( verbose )	printf( ">>> ." );
@@ -309,44 +309,44 @@ authdone:
 	    if ( buf[ strlen( buf ) - 1 ] == '\n' ) {
 		state = ST_BEGIN;
 		buf[ strlen( buf ) - 1 ] = '\0';
-		if ( net_writef( net, "%s\r\n", buf ) < 0 ) {
-		    perror( "net_writef" );
+		if ( snet_writef( sn, "%s\r\n", buf ) < 0 ) {
+		    perror( "snet_writef" );
 		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s\n", buf );
 	    } else {
 		state = ST_TRUNC;
-		if ( net_writef( net, "%s", buf ) < 0 ) {
-		    perror( "net_writef" );
+		if ( snet_writef( sn, "%s", buf ) < 0 ) {
+		    perror( "snet_writef" );
 		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s", buf );
 	    }
 	}
-	if ( net_writef( net, "\r\n.\r\n" ) < 0 ) {
-	    perror( "net_writef" );
+	if ( snet_writef( sn, "\r\n.\r\n" ) < 0 ) {
+	    perror( "snet_writef" );
 	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> .\n" );
     } else {
 	if ( verbose )	printf( ">>> " );
 	if ( *av[ optind ] == '.' ) {
-	    if ( net_writef( net, "." ) < 0 ) {
-		perror( "net_writef" );
+	    if ( snet_writef( sn, "." ) < 0 ) {
+		perror( "snet_writef" );
 		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( "." );
 	}
 	for (; optind < ac; optind++ ) {
 	    if ( optind < ac - 1 ) {
-		if ( net_writef( net, "%s ", av[ optind ] ) < 0 ) {
-		    perror( "net_writef" );
+		if ( snet_writef( sn, "%s ", av[ optind ] ) < 0 ) {
+		    perror( "snet_writef" );
 		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s ", av[ optind ] );
 	    } else {
-		if ( net_writef( net, "%s\r\n.\r\n", av[ optind ] ) < 0 ) {
-		    perror( "net_writef" );
+		if ( snet_writef( sn, "%s\r\n.\r\n", av[ optind ] ) < 0 ) {
+		    perror( "snet_writef" );
 		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s\n>>> .\n", av[ optind ] );
@@ -354,8 +354,8 @@ authdone:
 	}
     }
 
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	perror( "net_getline" );
+    if (( line = snet_getline( sn, NULL )) == NULL ) {
+	perror( "snet_getline" );
 	exit( EX_IOERR ) ;
     }
     if ( verbose )	printf( "<<< %s\n", line );
@@ -364,14 +364,14 @@ authdone:
 	exit( EX_TEMPFAIL );
     }
 
-    if ( net_writef( net, "QUIT\r\n" ) < 0 ) {
-	perror( "net_writef" );
+    if ( snet_writef( sn, "QUIT\r\n" ) < 0 ) {
+	perror( "snet_writef" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> QUIT\n" );
 
-    if (( line = net_getline( net, NULL )) == NULL ) {
-	perror( "net_getline" );
+    if (( line = snet_getline( sn, NULL )) == NULL ) {
+	perror( "snet_getline" );
 	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );

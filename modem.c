@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <net.h>
+#include <snet.h>
 
 #include "config.h"
 #include "modem.h"
@@ -95,15 +95,15 @@ modem_disconnect( modem )
     char		*resp;
     int			i;
 
-    if ( net_writef( modem->m_net, "\r" ) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+    if ( snet_writef( modem->m_net, "\r" ) < 0 ) {
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
     for (;;) {
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
@@ -123,15 +123,15 @@ modem_disconnect( modem )
 
     for ( i = 0; i < 3; i++ ) {
 	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
-	if ( net_writef( modem->m_net, "+++" ) < 0 ) {
-	    syslog( LOG_ERR, "net_writef: %m" );
+	if ( snet_writef( modem->m_net, "+++" ) < 0 ) {
+	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
 	}
 
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: reset: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: reset: %m" );
 	    continue;
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -141,16 +141,16 @@ modem_disconnect( modem )
     }
 
     /* LLL */ syslog( LOG_DEBUG, ">>> ATH" );
-    if ( net_writef( modem->m_net, "ATH\r" ) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+    if ( snet_writef( modem->m_net, "ATH\r" ) < 0 ) {
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
 
     for ( i = 0; i < 3; i++ ) {
 	tv.tv_sec = 30;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: hangup: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: hangup: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -162,8 +162,8 @@ modem_disconnect( modem )
 	syslog( LOG_ERR, "modem hangup failed" );
     }
 
-    if ( net_close( modem->m_net ) < 0 ) {
-	syslog( LOG_ERR, "net_close: %m" );
+    if ( snet_close( modem->m_net ) < 0 ) {
+	syslog( LOG_ERR, "snet_close: %m" );
 	return( -1 );
     }
     return( 0 );
@@ -219,22 +219,22 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
-    if (( modem->m_net = net_attach( fd, 1024 * 1024 )) == NULL ) {
-	syslog( LOG_ERR, "net_attach: %m" );
+    if (( modem->m_net = snet_attach( fd, 1024 * 1024 )) == NULL ) {
+	syslog( LOG_ERR, "snet_attach: %m" );
 	return( -1 );
     }
 
     for ( i = 0; i < 2; i++ ) {
 	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
-	if ( net_writef( modem->m_net, "+++" ) < 0 ) {
-	    syslog( LOG_ERR, "net_writef: %m" );
+	if ( snet_writef( modem->m_net, "+++" ) < 0 ) {
+	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
 	}
 
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: reset: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: reset: %m" );
 	    continue;
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -244,16 +244,16 @@ modem_connect( modem, service )
     }
 
     /* LLL */ syslog( LOG_DEBUG, ">>> ATHM0E0" );
-    if ( net_writef( modem->m_net, "ATHM0E0\r" ) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+    if ( snet_writef( modem->m_net, "ATHM0E0\r" ) < 0 ) {
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
 
     for ( i = 0; i < 3; i++ ) {
 	tv.tv_sec = 30;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: reset: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: reset: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -267,15 +267,15 @@ modem_connect( modem, service )
     }
 
     /* LLL */ syslog( LOG_DEBUG, ">>> ATDT%s", service->s_phone );
-    if ( net_writef( modem->m_net, "ATDT%s\r", service->s_phone ) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+    if ( snet_writef( modem->m_net, "ATDT%s\r", service->s_phone ) < 0 ) {
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
-    for ( i = 0; i < 2; i++ ) {
+    for ( i = 0; i < 3; i++ ) {
 	tv.tv_sec = 5 * 60;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: connect: %m" );
+	while (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: connect: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -283,24 +283,24 @@ modem_connect( modem, service )
 	    break;
 	}
     }
-    if ( i == 2 ) {
+    if ( i == 3 ) {
 	syslog( LOG_ERR, "modem failed to connect to %s", service->s_name );
 	return( -1 );
     }
 
     for ( i = 0; i < 3; i++ ) {
-	if ( net_writef( modem->m_net, "\r" ) < 0 ) {
-	    syslog( LOG_ERR, "net_writef: %m" );
+	if ( snet_writef( modem->m_net, "\r" ) < 0 ) {
+	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
 	}
 
 	tv.tv_sec = 2;
 	tv.tv_usec = 0;
-	if (( cc = net_read( modem->m_net, buf, sizeof( buf ), &tv )) < 0 ) {
-	    syslog( LOG_ERR, "net_read: %m" );
+	if (( cc = snet_read( modem->m_net, buf, sizeof( buf ), &tv )) < 0 ) {
+	    syslog( LOG_ERR, "snet_read: %m" );
 	    continue;
 	}
-	/* LLL */ syslog( LOG_DEBUG, "<<< %.*s", cc, buf );
+	/* LLL */syslog( LOG_DEBUG, "<<< %.*s", cc, buf );
 
 	len = strlen( banner );
 	if ( cc >= len && strncmp( buf, banner, len ) == 0 ) {
@@ -313,15 +313,15 @@ modem_connect( modem, service )
     }
 
     /* LLL */ syslog( LOG_DEBUG, ">>> PG1" );
-    if ( net_writef( modem->m_net, "PG1\r" ) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+    if ( snet_writef( modem->m_net, "PG1\r" ) < 0 ) {
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
     for (;;) {
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: login: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: login: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
@@ -343,8 +343,8 @@ modem_connect( modem, service )
     for (;;) {
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: go ahead: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: go ahead: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
@@ -405,17 +405,17 @@ modem_send( modem, pin, message, maxlen )
     sprintf( buf, "%s\r%.*s\r", pin, len, message );
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
 
-    if (( rc = net_writef( modem->m_net, "%s%s\r", buf,
+    if (( rc = snet_writef( modem->m_net, "%s%s\r", buf,
 	    tap_cksum( buf ))) < 0 ) {
-	syslog( LOG_ERR, "net_writef: %m" );
+	syslog( LOG_ERR, "snet_writef: %m" );
 	return( -1 );
     }
 
     for (;;) {
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
-	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	if (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
+	    syslog( LOG_ERR, "snet_getline: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
