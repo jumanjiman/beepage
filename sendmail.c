@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "path.h"
 #include "sendmail.h"
@@ -16,15 +17,17 @@ extern char		*maildomain;
 char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
 
     int
-sendmail( to, from, subject, message )
+sendmail( to, from, subject, file )
     char		*to;
     char		*from;
     char		*subject;
-    char		*message;
+    char		*file;
 {
-    char		tobuf[ 256 ], frombuf[ 256 ];
+    char		tobuf[ 256 ], frombuf[ 256 ], mbuf[ 8192 ];
+    char		*p, *end, *mailstart;
     FILE		*fp;
-    int			fd[ 2 ], c;
+    int			fd[ 2 ], c, qfd;
+    unsigned int	readlen;
 
     if ( pipe( fd ) < 0 ) {
 	syslog( LOG_ERR, "sendmail: pipe: %m" );
@@ -46,6 +49,8 @@ sendmail( to, from, subject, message )
     switch ( c = fork()) {
     case -1 :
 	syslog( LOG_ERR, "sendmail: fork: %m" );
+	close( fd[ 0 ] );
+	close( fd[ 1 ] );
 	return( -1 );
 
     case 0 :
@@ -75,11 +80,49 @@ sendmail( to, from, subject, message )
 	    syslog( LOG_ERR, "sendmail: fdopen: %m" );
 	    return( -1 );
 	}
-	fprintf( fp, "To: %s\n", tobuf );
-	fprintf( fp, "From: %s\n", frombuf );
-	fprintf( fp, "Subject: %s\n\n", subject );
-	fprintf( fp, "%s\n", message );
+
+	if (( qfd = open( file, O_RDONLY, 0 )) < 0 ) {
+	    perror( "queue file" );
+	    fclose( fp );
+	    return( -1 );
+	}
+
+	if ( ( readlen = read( qfd, mbuf, sizeof( mbuf ) ) ) < 0 ) {
+	    perror( "read" );
+	    fclose( fp );
+	    close( qfd );
+	    return( -1 );
+	}
+
+	mailstart = NULL;
+	/* Assume the Message will start within 8K */
+	for ( p = mbuf, end = mbuf + readlen; p+2 != end; p++ ) {
+	    if ( ( *p == '\n' ) && ( *(p+1) == 'M' ) && ( *(p+2) == '\n' ) ) {
+		mailstart = p + 3;
+	        break;
+	    }
+	}
+
+	if ( mailstart == NULL ) {
+	    syslog( LOG_ERR, "Queue file is defunct!" );
+	    fclose( fp );
+	    close( qfd );
+	    return( -1 );
+	}
+
+	readlen = readlen - ( mailstart - mbuf );
+	do {
+	    if ( write( fd[ 1 ], mailstart, readlen )  < 0  ) {
+		perror( "write" );
+		fclose( fp );
+		close( qfd );
+		return( -1 );
+	    }
+	    mailstart = mbuf;
+	} while ( ( readlen = read( qfd, mbuf, sizeof( mbuf ) ) ) != 0 );
+
 	fclose( fp );
+	close( qfd );
 	syslog( LOG_INFO, "sendmail confirmation to %s", tobuf );
     }
 
