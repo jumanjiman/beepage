@@ -379,7 +379,7 @@ cmdloop( fd, max_queue_size )
 		}
 	    }
 	    if ( i >= ncommands ) {
-		net_writef( net, "%d Command %s unregcognized\r\n", 500,
+		net_writef( net, "%d Command %s unrecognized\r\n", 500,
 			av[ 0 ] );
 	    }
 	} else {
