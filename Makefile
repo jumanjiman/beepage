@@ -32,7 +32,7 @@ tppd : ${DOBJ} Makefile
 	${CC} ${CFLAGS} ${LDFLAGS} -o tppd ${DOBJ} ${LIBPATH} ${LIBS}
 
 install : all
-	${INSTALL} -c tppd ${DESTDIR}/etc
+	${INSTALL} -o root -g tpp -m 4750 -c tppd ${DESTDIR}/etc
 	${INSTALL} -c tp ${DESTDIR}/bin
 
 clean :
