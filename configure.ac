@@ -48,6 +48,6 @@ AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([dup2 ftruncate gethostbyaddr gethostbyname gethostname gettimeofday inet_ntoa isascii memset mkdir select socket strcasecmp strchr strdup strncasecmp strrchr])
 
-AC_CONFIG_FILES([Makefile
-                 libsnet/Makefile])
+AC_CONFIG_SUBDIRS(libsnet)
+AC_CONFIG_FILES(Makefile)
 AC_OUTPUT
