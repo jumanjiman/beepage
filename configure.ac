@@ -6,7 +6,7 @@ AC_CONFIG_SRCDIR([argcargv.c])
 #AC_CONFIG_HEADER([config.h])
 
 # Variables
-#AC_ARG_WITH(kerberos, AC_HELP_STRING([--with-kerberos], [default: no kerberos support]))
+AC_ARG_ENABLE(kerberos, [AC_HELP_STRING([--enable-kerberos4], [build with support for kerberos v4 authentication])], use_kerberos=yes, use_kerberos=no )
 
 # Checks for programs.
 AC_PROG_AWK
@@ -17,7 +17,15 @@ AC_PROG_RANLIB
 # Checks for libraries.
 AC_CHECK_LIB([nsl], [inet_ntoa])
 AC_CHECK_LIB([socket], [socket])
-#AC_CHECK_LIB([krb], [gssapi])
+
+kdefs="${kdefs}"
+AC_SUBST(kdefs)
+ksrc="${ksrc}"
+AC_SUBST(ksrc)
+kobj="${kobj}"
+AC_SUBST(kobj)
+
+CHECK_KERBEROS
 
 # Checks for header files.
 AC_HEADER_DIRENT

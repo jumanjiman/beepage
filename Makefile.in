@@ -6,6 +6,9 @@ exec_prefix=@exec_prefix@
 MANDIR=@mandir@
 BINDIR=@bindir@
 SBINDIR=@sbindir@
+KDEFS=@kdefs@
+KSRC=@ksrc@
+KOBJ=@kobj@
 ETCDIR=${prefix}/etc
 
 USRDB=${ETCDIR}/users
@@ -16,27 +19,14 @@ PIDFILE=${ETCDIR}/pid
 BEEPAGEDSYSLOG=LOG_LOCAL6
 
 CC=		@CC@
-LIBS=		@LIBS@
-LDFLAGS=	@LDFLAGS@ ${LIBS}
+LIBS=		@LIBS@ -lsnet
+LDFLAGS=	@LDFLAGS@ -Llibsnet
 INSTALL=	@INSTALL@
 CWARN=		-Wall -Wmissing-prototypes
+DEFS=		-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS}		
 
-CFLAGS= ${CWARN} @CFLAGS@
+CFLAGS= ${CWARN} -g ${DEFS} @CFLAGS@ -Ilibsnet
 
-# To enable Kerberos v4, uncomment these lines.
-#KDEFS=	-DKRB
-#KSRC=	binhex.c
-#KOBJ=	binhex.o
-
-# For MIT Kerberos v4
-#KERBEROS=	/usr/local/kerberos
-#KINCPATH=	-I${KERBEROS}/include
-#KLIBPATH=	-L${KERBEROS}/lib
-#KLIBS=	-lkrb -ldes
-
-# For Solaris Kerberos v4
-#KINCPATH=	-I/usr/include/kerberos
-#KLIBS=	-lkrb
 
 # For debugging, skip modem code
 #DMODEM=	-DNOMODEM
@@ -49,12 +39,11 @@ DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
 	compress.o flock.o rfc822.o rfc2045.o ${KOBJ}
 COBJ=	beep.o ${KOBJ}
 
-INCPATH=	-Ilibsnet ${KINCPATH}
-DEFS=	-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS} ${DMODEM}
-CFLAGS=	-g ${DEFS} ${OPTOPTS} ${INCPATH}
+#INCPATH=	-Ilibsnet
+#DEFS=		-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS} ${DMODEM}
+#CFLAGS=		-g ${DEFS} ${OPTOPTS} ${INCPATH}
 TAGSFILE=	tags
-LIBPATH=	-Llibsnet ${KLIBPATH}
-LIBS=	${ADDLIBS} -lsnet ${KLIBS}
+#LIBPATH=	-Llibsnet
 
 all : beepaged beep
 
@@ -64,7 +53,7 @@ beep.o : beep.c
 	    -c beep.c
 
 beep : libsnet/libsnet.a ${COBJ} Makefile
-	${CC} ${CFLAGS} ${LDFLAGS} -o beep ${COBJ} ${LIBPATH} ${LIBS}
+	${CC} -o beep ${COBJ} ${CFLAGS} ${LDFLAGS} ${LIBPATH} ${LIBS}
 
 daemon.o : daemon.c
 	${CC} ${CFLAGS} \
@@ -76,7 +65,7 @@ daemon.o : daemon.c
 	    -c daemon.c
 
 beepaged : libsnet/libsnet.a ${DOBJ} Makefile
-	${CC} ${CFLAGS} ${LDFLAGS} -o beepaged ${DOBJ} ${LIBPATH} ${LIBS}
+	${CC} -o beepaged ${DOBJ} ${CFLAGS} ${LDFLAGS} ${LIBPATH} ${LIBS}
 
 FRC :
 
