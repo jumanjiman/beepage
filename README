@@ -34,7 +34,7 @@ Building beepage:
     enable Kerberos 4 support, and additional options to select the
     flavor of Kerberos 4 installed on your machine.
 
-2.  When you've completed the configuration, type "make" at the root of
+3.  When you've completed the configuration, type "make" at the root of
     the source.  This will make all binaries.
 
 Installing beepage:
