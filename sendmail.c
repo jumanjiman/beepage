@@ -1,19 +1,23 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#include <stdio.h>
 #include <syslog.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "path.h"
+#include "sendmail.h"
 
 extern char		*maildomain;
 
 char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
 
+    int
 sendmail( to, from, subject, message )
     char		*to;
+    char		*from;
     char		*subject;
     char		*message;
 {
