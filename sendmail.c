@@ -14,7 +14,7 @@
 
 extern char		*maildomain;
 
-char			*sendmailargv[] = { "sendmail", "-ftppd", "-odb", 0, 0 };
+char			*sendmailargv[] = { "sendmail", "-fbeepaged", "-odb", 0, 0 };
 
     int
 sendmail( to, from, subject, file )
