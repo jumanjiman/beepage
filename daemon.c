@@ -226,7 +226,7 @@ main( ac, av )
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = INADDR_ANY;
     sin.sin_port = port;
-    if ( bind( s, &sin, sizeof( struct sockaddr_in )) < 0 ) {
+    if ( bind( s, (struct sockaddr *)&sin, sizeof( struct sockaddr_in )) < 0 ) {
 	perror( "bind" );
 	exit( 1 );
     }
@@ -326,7 +326,7 @@ main( ac, av )
 	queue_check();
 
 	sinlen = sizeof( struct sockaddr_in );
-	if (( fd = accept( s, &sin, &sinlen )) < 0 ) {
+	if (( fd = accept( s, (struct sockaddr *)&sin, &sinlen )) < 0 ) {
 	    if ( errno == EINTR ) {
 		continue;
 	    }
