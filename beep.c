@@ -1,60 +1,82 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
-#include <strings.h>
+#include <arpa/inet.h>
+#include <string.h>
 #include <netdb.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <net.h>
 
+#include "binhex.h"
+
 #ifdef KRB
-#ifdef _svr4__
-#include <kerberos/krb.h>
-#else __svr4__
 #include <krb.h>
-#endif __svr4__
 #endif KRB
 
-char			*host = "tpp";
+#ifdef notdef
+char			*krb_realmofhost();
+char			*krb_get_phost();
+#endif notdef
 
+char			*host = "tpp";
+char			*version = VERSION;
+
+int			main ___P(( int, char *[] ));
+
+    int
 main( ac, av )
     int			ac;
     char		*av[];
 {
-    char		*prog, hostname[ 256 ], *line, *from, buf[ 1024 ];
+    struct passwd	*pw;
+    char		*prog, hostname[ 256 ], *line, buf[ 1024 ];
     int			c, err = 0, s, i;
     unsigned short	port = 0;
 #ifdef KRB
     KTEXT_ST		auth;
-    unsigned long	cksum;
+    long		cksum;
     int			rc;
     char		hexktext[ MAX_KTXT_LEN * 2 + 1 ];
     char		instance[ INST_SZ ], realm[ REALM_SZ ];
+    char		khostname[ 256 ];
 #endif KRB
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
     NET			*net;
-    int			verbose = 0, multiple = 0;
+    int			verbose = 0, multiple = 0, quiet = 0;
     extern char		*optarg;
     extern int		optind;
 
-    if (( prog = rindex( av[ 0 ], '/' )) == NULL ) {
+    if (( prog = strrchr( av[ 0 ], '/' )) == NULL ) {
 	prog = av[ 0 ];
     } else {
 	prog++;
     }
 
-    while (( c = getopt( ac, av, "vmh:p:" )) != EOF ) {
+    while (( c = getopt( ac, av, "Vvqmh:p:" )) != EOF ) {
 	switch ( c ) {
+	case 'V' :	/* virgin */
+	    printf( "%s\n", version );
+	    exit( 0 );
+	    break;
+
 	case 'v' :	/* verbose */
 	    verbose++;
+	    break;
+
+	case 'q' :	/* quiet, bitch! */
+	    quiet++;
 	    break;
 
 	case 'm' :	/* many/multiple really means stdin... */
@@ -85,8 +107,11 @@ main( ac, av )
     /* look up the port */
     if ( port == 0 ) {
 	if (( se = getservbyname( "tpp", "tcp" )) == NULL ) {
-	    fprintf( stderr, "%s: can't find tpp service\n%s: continuing...\n",
+	    if ( ! quiet ) {
+		fprintf( stderr,
+		    "%s: can't find tpp service\n%s: continuing...\n",
 		    prog, prog );
+	    }
 	    port = htons( 6661 );
 	} else {
 	    port = se->s_port;
@@ -94,7 +119,7 @@ main( ac, av )
     }
 
     if (( hp = gethostbyname( host )) == NULL ) {
-	herror( host );
+	fprintf( stderr, "%s: Can't find address.\n", host );
 	exit( 1 );
     }
     strcpy( hostname, hp->h_name );
@@ -104,13 +129,15 @@ main( ac, av )
 	exit( 1 );
     }
 
-    bzero( &sin, sizeof( struct sockaddr_in ));
+    memset( &sin, 0, sizeof( struct sockaddr_in ));
     sin.sin_family = AF_INET;
     sin.sin_port = port;
     for ( i = 0; hp->h_addr_list[ i ] != NULL; i++ ) {
 	/* address in sin, for later */
-	bcopy( hp->h_addr_list[ i ], &sin.sin_addr.s_addr, hp->h_length );
-	if ( connect( s, &sin, sizeof( struct sockaddr_in )) == 0 ) {
+	memcpy( &sin.sin_addr.s_addr, hp->h_addr_list[ i ],
+		(unsigned)hp->h_length );
+	if ( connect( s, (struct sockaddr *)&sin,
+		sizeof( struct sockaddr_in )) == 0 ) {
 	    break;
 	}
 	perror( hostname );
@@ -135,39 +162,50 @@ main( ac, av )
     }
 
 #ifdef KRB
-    if (( hp = gethostbyaddr( &sin.sin_addr.s_addr,
+    if (( hp = gethostbyaddr( (char *)&sin.sin_addr.s_addr,
 	    sizeof( sin.sin_addr.s_addr ), AF_INET )) == NULL ) {
-	herror( inet_ntoa( sin.sin_addr ));
+	fprintf( stderr, "%s: Can't find name.\n", inet_ntoa( sin.sin_addr ));
 	exit( 1 );
     }
+    strcpy( khostname, hp->h_name );
     cksum = time( 0 ) ^ getpid();
-    strcpy( instance, krb_get_phost( hp->h_name ));
-    strcpy( realm, krb_realmofhost( hp->h_name ));
-    if (( rc = krb_mk_req( &auth, "rcmd", instance, realm, cksum )) ==
+    strcpy( instance, krb_get_phost( khostname ));
+    strcpy( realm, krb_realmofhost( khostname ));
+    if (( rc = krb_mk_req( &auth, "rcmd", instance, realm, cksum )) !=
 	    KSUCCESS ) {
+	if ( ! quiet ) {
+	    fprintf( stderr, "%s: %s\n%s: continuing...\n",
+		    prog, krb_err_txt[ rc ], prog );
+	}
+    } else {
 	bin2hex( auth.dat, hexktext, auth.length );
 	if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
 	    perror( "net_writef" );
 	    exit( 1 );
 	}
 	if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
-    } else {
-	fprintf( stderr, "%s: %s\n", prog, krb_err_txt[ rc ] );
-	fprintf( stderr, "%s: continuing...\n", prog );
-#endif KRB
 
-	if (( from = cuserid( NULL )) == NULL ) {
-	    fprintf( stderr, "%s: who are you?\n", prog );
+	if (( line = net_getline( net, NULL )) == NULL ) {
+	    perror( "net_getline" );
 	    exit( 1 );
 	}
-	if ( net_writef( net, "AUTH NONE %s\r\n", from ) < 0 ) {
-	    perror( "net_writef" );
-	    exit( 1 );
+	if ( verbose )	printf( "<<< %s\n", line );
+	if ( *line == '2' ) {
+	    goto authdone;
 	}
-	if ( verbose )	printf( ">>> AUTH NONE %s\n", from );
-#ifdef KRB
+	fprintf( stderr, "%s\n", line );
     }
 #endif KRB
+
+    if (( pw = getpwuid( getuid())) == NULL ) {
+	fprintf( stderr, "%s: who are you?\n", prog );
+	exit( 1 );
+    }
+    if ( net_writef( net, "AUTH NONE %s\r\n", pw->pw_name ) < 0 ) {
+	perror( "net_writef" );
+	exit( 1 );
+    }
+    if ( verbose )	printf( ">>> AUTH NONE %s\n", pw->pw_name );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
@@ -178,6 +216,13 @@ main( ac, av )
 	fprintf( stderr, "%s\n", line );
 	exit( 1 );
     }
+
+#ifdef KRB
+/*
+ * This let's us skip the "AUTH NONE" method when "AUTH KRB" succeeds.
+ */
+authdone:
+#endif KRB
 
     if ( multiple ) {
 	for (; optind < ac; optind++ ) {
@@ -328,6 +373,8 @@ main( ac, av )
 	exit( 1 );
     }
 
-    printf( "Page queued on %s\n", hostname );
+    if ( ! quiet ) {
+	printf( "Page queued on %s\n", hostname );
+    }
     exit( 0 );
 }
