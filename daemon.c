@@ -108,6 +108,7 @@ main( ac, av )
     int			dontrun = 0;
     int			restart = 0;
     int			pidfd;
+    int			max_queue_size = 0;
     FILE		*pf;
     char		*pidfile = _PATH_PIDFILE;
     char		*prog;
@@ -121,8 +122,12 @@ main( ac, av )
 	prog++;
     }
 
-    while (( c = getopt( ac, av, "Vrcdp:b:M:" )) != -1 ) {
+    while (( c = getopt( ac, av, "q:Vrcdp:b:M:" )) != -1 ) {
 	switch ( c ) {
+	case 'q' :		/* max queue size */
+	    max_queue_size = atoi( optarg );
+	    break;
+
 	case 'V' :		/* virgin */
 	    printf( "%s\n", version );
 	    exit( 0 );
@@ -212,7 +217,7 @@ main( ac, av )
 
     if ( err || optind == ac ) {
 	fprintf( stderr,
-		"Usage:\t%s [ -d ] [ -p port ] [ -b backlog ] tty ...\n",
+		"Usage:\t%s [ -d ] [ -c ] [ -p port ] [ -b backlog ] [ -M maildomain ] [ -q maxqueue ] tty ...\n",
 		prog );
 	exit( 1 );
     }
@@ -384,7 +389,7 @@ main( ac, av )
 			inet_ntoa( sin.sin_addr ), hp->h_name );
 	    }
 
-	    exit( cmdloop( fd ));
+	    exit( cmdloop( fd, max_queue_size ));
 
 	case -1 :
 	    close( fd );
