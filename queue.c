@@ -460,9 +460,10 @@ queue_read( file )
     char		*file;
 {
     struct page		*page;
-    char		*line, *at, *from, *subj;
+    char		*a, *b, *line, *at, *from, *subj;
     NET			*net;
     int 		offset, state, once;
+    int 		mime = 0;
 
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
@@ -514,6 +515,11 @@ queue_read( file )
     from = subj = NULL;
 
     while ( ( line = net_getline( net, NULL )) != NULL ) {
+/*
+ * check if content type flag and if first char is a whitespace
+ * if so, pass this line into the function that will get content type
+ * info
+ */
         if ( *line == '\0' ) {
 	    break;
 	}
@@ -554,6 +560,35 @@ queue_read( file )
 		line += 9;
 		sprintf( subj, "%s", line );
 	    }
+	}
+        if ( strncmp( "MIME-Version:", line, 13 ) == 0 ) {
+	    mime = 1;
+	    continue;
+	}
+	if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
+/* flag that I got a content type header, 
+ * pass the line I just read into a function 
+ * that will collect the important mime info
+ */
+	    if (!mime) {
+		/*malformatted mail*/
+	    }
+	    if ( ( a = strchr( line, '/' ) ) == NULL ) {
+		/*mailformatted mail*/
+	    } 
+	    *a = '\0';
+	    b = line;
+	    for ( b += 13 ; isspace( *b ); b++ ) {
+	    }
+	    type = strdup( b );
+	    *a++ = '/';
+	    if ( ( b = strchr( line, ';' ) ) == NULL ) {
+		/*mailformatted mail*/
+		/*probably*/
+	    } 
+	    *b = '\0';
+	    subtype = strdup( a );
+	    
 	}
     }
     offset = state = 0;
