@@ -9,5 +9,5 @@
 #define ___P(x)		()
 #endif __STDC__
 
-int		cmdloop ___P(( int ));
+int		cmdloop ___P(( int, int ));
 int		argcargv ___P(( char *, char **[] ));
