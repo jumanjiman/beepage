@@ -18,6 +18,13 @@
 #include "modem.h"
 #include "path.h"
 
+struct page {
+    char	*p_from;
+    char	*p_to;
+    int		p_flags;
+    char	*p_message;
+};
+
     struct queue *
 queue_init( sender )
     char		*sender;
@@ -140,7 +147,7 @@ queue_create( q )
 	    return( -1 );
 	}
 
-	/* XXX flags? */
+	/* XXX need a flag for CONFIRM and QUIET */
 
 	fprintf( qu->qu_fp, "F%s\nT%s\nM\n%s:", q->q_sender,
 		qu->qu_user->u_name, q->q_sender );
@@ -154,6 +161,7 @@ queue_line( q, line )
     char		*line;
 {
     struct quser	*qu;
+    int			rc = 0;
 
     for ( qu = q->q_users; qu != NULL; qu = qu->qu_next ) {
 	fprintf( qu->qu_fp, "%s\n", line );
@@ -165,10 +173,10 @@ queue_line( q, line )
 	 */
 	qu->qu_len += strlen( line ) + 1;
 	if ( qu->qu_len > TAP_MAXLEN ) {	/* XXX should be per-user? */
-	    return( -1 );
+	    rc = -1;
 	}
     }
-    return( 0 );
+    return( rc );
 }
 
 /* remove queue files */
@@ -220,6 +228,105 @@ queue_done( q )
     return( 0 );
 }
 
+    struct page *
+queue_read( file )
+    char		*file;
+{
+    struct page		*page;
+    FILE		*fp;
+    char		buf[ 256 ], *p;
+    int			len;
+
+    if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
+	syslog( LOG_ERR, "malloc: %m" );
+	exit( 1 );
+    }
+    page->p_flags = 0;
+
+    if (( fp = fopen( file, "r" )) == NULL ) {
+	syslog( LOG_ERR, "fopen: %s: %m", file );
+	return( NULL );
+    }
+
+    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
+	syslog( LOG_ERR, "fgets: %m" );
+	return( NULL );
+    }
+    len = strlen( buf );
+    if ( *buf != 'F' || *( buf + len - 1 ) != '\n' ) {
+	syslog( LOG_ERR, "error in queue file!" );
+	return( NULL );
+    }
+    *( buf + len - 1 ) = '\0';
+    p = buf + 1;
+
+    if (( page->p_from = (char *)malloc( strlen( p ) + 1 )) == NULL ) {
+	syslog( LOG_ERR, "malloc: %m" );
+	exit( 1 );
+    }
+    strcpy( page->p_from, p );
+
+    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
+	syslog( LOG_ERR, "fgets: %m" );
+	return( NULL );
+    }
+    len = strlen( buf );
+    if ( *buf != 'T' || *( buf + len - 1 ) != '\n' ) {
+	syslog( LOG_ERR, "error in queue file!" );
+	return( NULL );
+    }
+    *( buf + len - 1 ) = '\0';
+    p = buf + 1;
+
+    if (( page->p_to = (char *)malloc( strlen( p ) + 1 )) == NULL ) {
+	syslog( LOG_ERR, "malloc: %m" );
+	exit( 1 );
+    }
+    strcpy( page->p_to, p );
+
+    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
+	syslog( LOG_ERR, "fgets: %m" );
+	return( NULL );
+    }
+    if ( strcmp( buf, "M\n" ) != 0 ) {
+	syslog( LOG_ERR, "error in queue file!" );
+	return( NULL );
+    }
+
+    page->p_message = NULL;
+    while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
+	if ( page->p_message == NULL ) {
+	    if (( page->p_message =
+		    (char *)malloc( strlen( buf ) + 1 )) == NULL ) {
+		syslog( LOG_ERR, "malloc: %m" );
+		exit( 1 );
+	    }
+	    strcpy( page->p_message, buf );
+	} else {
+	    len = strlen( page->p_message );
+	    if (( page->p_message = (char *)realloc( page->p_message,
+		    len + strlen( buf ) + 1 )) == NULL ) {
+		syslog( LOG_ERR, "realloc: %m" );
+		exit( 1 );
+	    }
+	    strcpy( page->p_message + len, buf );
+	}
+    }
+    *( page->p_message + strlen( page->p_message ) - 1 ) = '\0'; /*trailing NL*/
+
+    fclose( fp );
+    return( page );
+}
+
+queue_free( page )
+    struct page	*page;
+{
+    free( page->p_from );
+    free( page->p_to );
+    free( page->p_message );
+    free( page );
+}
+
 queue_check()
 {
     struct sigaction	sa;
@@ -228,7 +335,8 @@ queue_check()
     DIR			*dirp;
     struct dirent	*dp;
     struct usrdb	*u;
-    char		from[ 256 ], to[ 256 ], mess[ 256 ];
+    struct page		*page;
+    char		*subject;
     int			pid, cnt, rc;
 
     while (( modem = modem_find()) != NULL ) {
@@ -290,30 +398,38 @@ queue_check()
 				continue;
 			    }
 
-			    if ( queue_read( dp->d_name, from, to, mess ) < 0 ){
+			    if (( page = queue_read( dp->d_name )) == NULL ) {
 				syslog( LOG_ERR, "queue_read: %s failed",
 					dp->d_name );
 				exit( 1 );
 			    }
-			    if (( u = usrdb_find( to )) == NULL ) {
-				syslog( LOG_ERR, "usrdb_find: %s failed", to );
+
+			    if (( u = usrdb_find( page->p_to )) == NULL ) {
+				syslog( LOG_ERR, "usrdb_find: %s failed",
+					page->p_to );
 				exit( 1 );
 			    }
 
-			    switch ( rc = modem_send( modem, u->u_pin, mess )) {
+			    switch ( rc = modem_send( modem, u->u_pin,
+				    page->p_message )) {
 			    case -1 :	/* retry */
 				syslog( LOG_ERR, "retry %s/%s from %s to %s",
-					s->s_name, dp->d_name, from, to );
+					s->s_name, dp->d_name,
+					page->p_from, page->p_to );
 				exit( 1 );
 
 			    case 0 :	/* OK */
 				syslog( LOG_INFO, "sent %s/%s from %s to %s",
-					s->s_name, dp->d_name, from, to );
+					s->s_name, dp->d_name,
+					page->p_from, page->p_to );
+				subject = "page sent";
 				break;
 
 			    default :	/* invalid, dump it */
 				syslog( LOG_ERR, "invalid %s/%s from %s to %s",
-					s->s_name, dp->d_name, from, to );
+					s->s_name, dp->d_name,
+					page->p_from, page->p_to );
+				subject = "page failed";
 				break;
 			    }
 			    if ( unlink( dp->d_name ) < 0 ) {
@@ -322,16 +438,27 @@ queue_check()
 			    }
 
 			    /*
-			     * XXX
-			     * There are two sendmail types, each of which
+			     * There are two subjects, each of which
 			     * may be sent to the originator and receiver.
-			     * Select the message type above, send to everyone
-			     * here.
+			     * The subject is selected above, message are
+			     * sent to everyone here.
 			     */
-			    if ( u->u_flags & U_SENDMAIL &&
-				    sendmail( from, to, mess ) < 0 ) {
+			    if (( u->u_flags & U_SENDMAIL ) &&
+				    sendmail( page->p_to, subject,
+				    page->p_message ) < 0 ) {
 				syslog( LOG_ERR, "sendmail: failed" );
 			    }
+
+#ifdef notdef
+			    if ((( page->p_flags & P_CONFIRM ) || ( rc > 0 &&
+				    ( page->p_flags & P_QUIET ) == 0 )) &&
+				    sendmail( page->p_from, subject,
+				    page->p_message ) < 0 ) {
+				syslog( LOG_ERR, "sendmail: failed" );
+			    }
+#endif notdef
+
+			    queue_free( page );
 			    cnt++;
 			}
 			closedir( dirp );
@@ -365,65 +492,4 @@ queue_check()
 	}
     }
     return;
-}
-
-queue_read( file, from, to, message )
-    char		*file;
-    char		*from;
-    char		*to;
-    char		*message;
-{
-    FILE		*fp;
-    char		buf[ 256 ], *p;
-    int			len;
-
-    if (( fp = fopen( file, "r" )) == NULL ) {
-	syslog( LOG_ERR, "fopen: %s: %m", file );
-	return( -1 );
-    }
-
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
-	return( -1 );
-    }
-    len = strlen( buf );
-    if ( *buf != 'F' || *( buf + len - 1 ) != '\n' ) {
-	syslog( LOG_ERR, "error in queue file!" );
-	return( -1 );
-    }
-    *( buf + len - 1 ) = '\0';
-    p = buf + 1;
-    strcpy( from, p );
-
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
-	return( -1 );
-    }
-    len = strlen( buf );
-    if ( *buf != 'T' || *( buf + len - 1 ) != '\n' ) {
-	syslog( LOG_ERR, "error in queue file!" );
-	return( -1 );
-    }
-    *( buf + len - 1 ) = '\0';
-    p = buf + 1;
-    strcpy( to, p );
-
-    if ( fgets( buf, sizeof( buf ), fp ) == NULL ) {
-	syslog( LOG_ERR, "fgets: %m" );
-	return( -1 );
-    }
-    if ( strcmp( buf, "M\n" ) != 0 ) {
-	syslog( LOG_ERR, "error in queue file!" );
-	return( -1 );
-    }
-
-    p = buf;
-    while ( fgets( p, sizeof( buf ) - ( p - buf ), fp ) != NULL ) {
-	p += strlen( p );
-    }
-    *( buf + strlen( buf ) - 1 ) = '\0'; /*trailing NL*/
-    strcpy( message, buf );
-
-    fclose( fp );
-    return( 0 );
 }
