@@ -57,10 +57,10 @@ main( ac, av )
 	    verbose++;
 	    break;
 
-	case 'm' :	/* many? */
+	case 'm' :	/* many/multiple really means stdin... */
 	    multiple++;
 	    break;
-	
+
 	case 'h' :	/* host */
 	    host = optarg;
 	    break;
@@ -73,9 +73,13 @@ main( ac, av )
 	    err++;
 	}
     }
-    if ( err || optind == ac || ( multiple == 0 && optind + 1 == ac )) {
+    if ( err || optind == ac ) {
 	fprintf( stderr, "Usage:\t%s [ -v ] user message ...\n", prog );
 	exit( 1 );
+    }
+
+    if ( optind + 1 == ac ) {
+	multiple++;
     }
 
     /* look up the port */
