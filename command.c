@@ -134,8 +134,12 @@ f_page( net, ac, av )
     int		ac;
     char	*av[];
 {
-    if ( ac != 2 ) {
+    if ( ac < 2 ) {
 	net_writef( net, "%d Must specify a recipient\r\n", 520 );
+	return( 1 );
+    }
+    if ( ac > 2 ) {
+	net_writef( net, "%d Syntax Error\r\n", 523 );
 	return( 1 );
     }
     if ( pq == NULL ) {
