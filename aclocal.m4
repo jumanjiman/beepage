@@ -18,13 +18,6 @@ AC_DEFUN([CHECK_KERBEROS],
 		LIBS="$LIBS -lkrb4 -lkrb5 -lk5crypto -ldes425 -lcom_err"
 		break;
 	    fi
-	    if test -f "$dir/include/kerberosV/krb5.h"; then
-		found_krb="yes";
-		CFLAGS="$CFLAGS -I$dir/include/kerberosV -I$dir/include/kerberosIV";
-		LDFLAGS="$LDFLAGS -L$krbdir/lib";
-		LIBS="$LIBS -lkrb4 -lkrb5 -lk5crypto -ldes425 -lcom_err"
-		break;
-	    fi
 	    if test -f "$dir/include/krb5.h"; then
 		found_krb="yes";
     		CFLAGS="$CFLAGS -I$krbdir/include -I$krbdir/include/kerberosIV";
@@ -33,6 +26,20 @@ AC_DEFUN([CHECK_KERBEROS],
 		break;
 	    fi
 	done
+	if test x_$found_krb != x_yes; then
+	    AC_MSG_RESULT(no)
+	    AC_MSG_CHECKING(for openbsd kerberos 5)
+	    for dir in $krbdirs; do
+		krbdir="$dir";
+	        if test -f "$dir/include/kerberosV/krb5.h"; then
+		    found_krb="yes";
+		    CFLAGS="$CFLAGS -I$dir/include/kerberosV -I$dir/include/kerberosIV";
+		    LDFLAGS="$LDFLAGS -L$krbdir/lib";
+		    LIBS="$LIBS -lkrb -lkrb5 -lcom_err"
+		    break;
+	        fi
+	    done
+	fi
 	if test x_$found_krb != x_yes; then
 	    AC_MSG_RESULT(no)
 	    AC_MSG_CHECKING(for kerberos 4)
