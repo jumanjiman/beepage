@@ -54,6 +54,10 @@ hup( sig )
 	syslog( LOG_ERR, "%s: failed", _PATH_USRDB );
 	exit( 1 );
     }
+    if ( grpdb_read( _PATH_GRPDB ) < 0 ) {
+	syslog( LOG_ERR, "%s: failed", _PATH_GRPDB );
+	exit( 1 );
+    }
 }
 
     void
@@ -155,11 +159,15 @@ main( ac, av )
 	}
     }
 
-    /* these two routines both report their own errors, on stderr */
+    /* these three routines both report their own errors, on stderr */
+
     if ( srvdb_read( _PATH_SRVDB ) < 0 ) {
 	exit( 1 );
     }
     if ( usrdb_read( _PATH_USRDB ) < 0 ) {
+	exit( 1 );
+    }
+    if ( grpdb_read( _PATH_GRPDB ) < 0 ) {
 	exit( 1 );
     }
 

@@ -70,35 +70,75 @@ queue_init( sender, flags )
  *	2	kerberos
  */
     int
-queue_recipient( q, user )
+queue_recipient( q, name )
     struct pqueue	*q;
-    char		*user;
+    char		*name;
 {
+    NET			*net;
+    int 		ret;
+    char 		*line;
     struct usrdb	*u;
     struct quser	*qu;
+    struct grpdb	*g;
+    struct grpdb_mem	*gm;
 
     /* XXX check deny list */
+    if (( g = grpdb_find( name )) != NULL ) {
+	if ( g->g_flags & G_DONE ) {
+            return( 0 );
+	}
+	g->g_flags |= G_DONE;
 
-    if (( u = usrdb_find( user )) == NULL ) {
-	return( 1 );
+	for ( gm = g->g_mbr; gm != NULL; gm = gm->gm_next ) {
+	    if ( gm->gm_flags & G_FILENAME ) {
+		if (( net = net_open( gm->gm_name, O_RDONLY, 0, 0 )) == NULL ) {
+		    syslog( LOG_NOTICE, "%s: %m", gm->gm_name );
+		    return( -1 );
+		}
+		while (( line = net_getline( net, NULL )) != NULL ) {
+		    if (( line[ 0 ] == '#' ) || ( line[ 0 ] == '\0' )) {
+			continue;
+		    }
+		    if  (( ret = queue_recipient( q, line )) != 0 ) {
+			return( ret );
+		    }
+		}
+		if ( net_close( net ) < 0 ) {
+		    syslog( LOG_ERR, "net_close: %m" );
+		    return( -1 );
+	   	}
+	    } else {
+		if (( ret = queue_recipient( q, gm->gm_name )) != 0 ) {
+		    return( ret );
+		}
+	    }
+	}
+
+    } else {
+	if (( u = usrdb_find( name )) == NULL ) {
+	    return( 1 );
+	}
+	if (( u->u_flags & U_KERBEROS ) && ( q->q_flags & Q_KERBEROS ) == 0 ) {
+	    return( 2 );
+	}
+	if ( u->u_flags & U_DONE ) {
+	    return( 0 );
+	}
+	u->u_flags |= U_DONE;
+
+	if (( qu = (struct quser *)malloc( sizeof( struct quser ))) == NULL ) {
+	    syslog( LOG_ERR, "malloc: %m" );
+	    return( -1 );
+	}
+
+	qu->qu_user = u;
+	qu->qu_seq = 0;
+	qu->qu_len = TAP_OVERHEAD + strlen( u->u_pin ) +
+		strlen( q->q_sender ) + 1;		/* 1 is the ':' */
+	qu->qu_fp = NULL;
+	qu->qu_next = q->q_users;
+	q->q_users = qu;
     }
-    if (( u->u_flags & U_KERBEROS ) && ( q->q_flags & Q_KERBEROS ) == 0 ) {
-	return( 2 );
-    }
-
-    if (( qu = (struct quser *)malloc( sizeof( struct quser ))) == NULL ) {
-	syslog( LOG_ERR, "malloc: %m" );
-	return( -1 );
-    }
-
-    qu->qu_user = u;
-    qu->qu_seq = 0;
-    qu->qu_len = TAP_OVERHEAD + strlen( u->u_pin ) +
-	    strlen( q->q_sender ) + 1;			/* 1 is the ':' */
-    qu->qu_fp = NULL;
-    qu->qu_next = q->q_users;
-    q->q_users = qu;
-
     return( 0 );
 }
 
@@ -254,6 +294,8 @@ queue_done( q )
 	syslog( LOG_INFO, "queued %s/P%d from %s to %s",
 		service, qu->qu_seq, q->q_sender, qu->qu_user->u_name );
     }
+
+    usrdb_clear();
 
     return( 0 );
 }
@@ -469,11 +511,18 @@ queue_check( osachld, osahup )
 			     * may be sent to the originator and receiver.
 			     * The subject is selected above, message are
 			     * sent to everyone here.
+			     *
+			     * If the user has a different email addr in
+			     * the tppd.users file, tell sendmail() here
 			     */
-			    if (( u->u_flags & U_SENDMAIL ) &&
-				    sendmail( page->p_to, page->p_from, subject,
-				    page->p_message ) < 0 ) {
-				syslog( LOG_ERR, "sendmail: failed" );
+
+			    if ( u->u_flags & U_SENDMAIL ) {
+				if ( sendmail((( u->u_email != NULL ) ?
+					u->u_email : page->p_to ),
+					page->p_from, subject,
+					page->p_message ) < 0 ) {
+				    syslog( LOG_ERR, "sendmail: failed" );
+				}
 			    }
 
 #ifdef notdef
@@ -494,7 +543,8 @@ queue_check( osachld, osahup )
 			}
 		    }
 		    if ( modem_disconnect( modem ) < 0 ) {
-			syslog( LOG_ERR, "modem_connect: %s: %m", s->s_name );
+			syslog( LOG_ERR, "modem_disconnect: %s: %m",
+				s->s_name );
 			exit( 1 );
 		    }
 		    exit( 0 );

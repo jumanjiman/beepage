@@ -6,6 +6,7 @@
 #include <syslog.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "path.h"
 #include "sendmail.h"
@@ -31,7 +32,11 @@ sendmail( to, from, subject, message )
     }
 
     if ( maildomain != NULL ) {
-	sprintf( tobuf, "%s@%s", to, maildomain );
+	if ( strchr( to, '@' ) != NULL ) {
+	    sprintf( tobuf, "%s", to );
+	} else {
+	    sprintf( tobuf, "%s@%s", to, maildomain );
+	}
 	sprintf( frombuf, "%s@%s", from, maildomain );
     } else {
 	sprintf( tobuf, "%s", to );

@@ -70,6 +70,7 @@ tp : libnet/libnet.a ${COBJ} Makefile
 daemon.o : daemon.c
 	${CC} ${CFLAGS} \
 	    -D_PATH_USRDB=\"${ETCDIR}/tppd.users\" \
+	    -D_PATH_GRPDB=\"${ETCDIR}/tppd.aliases\" \
 	    -D_PATH_SRVDB=\"${ETCDIR}/tppd.services\" \
 	    -D_PATH_PIDFILE=\"${ETCDIR}/tppd.pid\" \
 	    -DVERSION=\"`cat VERSION`\" \
@@ -98,6 +99,7 @@ install : all
 	${INSTALL} -m 0444 -c tp.1 ${MANDIR}/man1/
 	sed -e s@:ETCDIR:@${ETCDIR}@ < tppd.8 > tppd.0
 	${INSTALL} -m 0444 tppd.0 ${MANDIR}/man8/tppd.8
+	rm -f tppd.0
 
 clean :
 	cd libnet; ${MAKE} ${MFLAGS} clean
