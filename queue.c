@@ -1,16 +1,20 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/time.h>
+#include <sys/param.h>
+#include <syslog.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <syslog.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 #include <net.h>
 
@@ -20,6 +24,7 @@
 #include "config.h"
 #include "modem.h"
 #include "path.h"
+#include "sendmail.h"
 
 struct page {
     char	*p_from;
@@ -28,16 +33,20 @@ struct page {
     char	*p_message;
 };
 
-    struct queue *
+int		queue_seq ___P(( char * ));
+struct page	*queue_read ___P(( char * ));
+void		queue_free ___P(( struct page * ));
+
+    struct pqueue *
 queue_init( sender, flags )
     char		*sender;
     int			flags;
 {
-    struct queue	*q;
+    struct pqueue	*q;
 
     /* XXX check deny list */
 
-    if (( q = (struct queue *)malloc( sizeof( struct queue ))) == NULL ) {
+    if (( q = (struct pqueue *)malloc( sizeof( struct pqueue ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
 	return( NULL );
     }
@@ -60,8 +69,9 @@ queue_init( sender, flags )
  *	1	user unknown
  *	2	kerberos
  */
+    int
 queue_recipient( q, user )
-    struct queue	*q;
+    struct pqueue	*q;
     char		*user;
 {
     struct usrdb	*u;
@@ -93,11 +103,13 @@ queue_recipient( q, user )
 }
 
 /* get sequence number from ".seq" file */
+    int
 queue_seq( service )
     char		*service;
 {
     char		*p, buf[ MAXPATHLEN ];
-    int			fd, len;
+    int			fd;
+    unsigned		len;
     int			seq;
 
     sprintf( buf, "%s/.seq", service );
@@ -121,7 +133,7 @@ queue_seq( service )
 
     seq += 1;
     sprintf( buf, "%d\n", seq );
-    if ( lseek( fd, 0L, SEEK_SET ) < 0 ) {
+    if ( lseek( fd, (off_t)0, SEEK_SET ) < 0 ) {
 	return( -1 );
     }
     len = strlen( buf );
@@ -133,8 +145,9 @@ queue_seq( service )
 }
 
 /* make queue files */
+    int
 queue_create( q )
-    struct queue	*q;
+    struct pqueue	*q;
 {
     struct quser	*qu;
     char		*service;
@@ -170,8 +183,9 @@ queue_create( q )
     return( 0 );
 }
 
+    int
 queue_line( q, line )
-    struct queue	*q;
+    struct pqueue	*q;
     char		*line;
 {
     struct quser	*qu;
@@ -194,8 +208,9 @@ queue_line( q, line )
 }
 
 /* remove queue files */
+    int
 queue_cleanup( q )
-    struct queue	*q;
+    struct pqueue	*q;
 {
     struct quser	*qu;
     char		buf[ MAXPATHLEN ];
@@ -216,8 +231,9 @@ queue_cleanup( q )
 }
 
 /* rename queue files to unlocked, valid names */
+    int
 queue_done( q )
-    struct queue	*q;
+    struct pqueue	*q;
 {
     struct quser	*qu;
     char		b1[ MAXPATHLEN ], b2[ MAXPATHLEN ];
@@ -332,6 +348,7 @@ queue_read( file )
     return( page );
 }
 
+    void
 queue_free( page )
     struct page	*page;
 {
@@ -339,11 +356,13 @@ queue_free( page )
     free( page->p_to );
     free( page->p_message );
     free( page );
+    return;
 }
 
-queue_check()
+    void
+queue_check( osachld, osahup )
+    struct sigaction	*osachld, *osahup;
 {
-    struct sigaction	sa;
     struct modem	*modem;
     struct srvdb	*first, *s;
     DIR			*dirp;
@@ -376,18 +395,12 @@ queue_check()
 	    if ( dp != NULL ) {
 		switch ( pid = fork()) {
 		case 0 :
-		    /* default SIGCHLD handler */
-		    bzero( &sa, sizeof( struct sigaction ));
-		    sa.sa_handler = SIG_DFL;
-		    if ( sigaction( SIGCHLD, &sa, 0 ) < 0 ) {
+		    /* reset CHLD and HUP */
+		    if ( sigaction( SIGCHLD, osachld, 0 ) < 0 ) {
 			syslog( LOG_ERR, "sigaction: %m" );
 			exit( 1 );
 		    }
-
-		    /* catch SIGHUP */
-		    bzero( &sa, sizeof( struct sigaction ));
-		    sa.sa_handler = SIG_DFL;
-		    if ( sigaction( SIGHUP, &sa, 0 ) < 0 ) {
+		    if ( sigaction( SIGHUP, osahup, 0 ) < 0 ) {
 			syslog( LOG_ERR, "sigaction: %m" );
 			exit( 1 );
 		    }
