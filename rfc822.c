@@ -6,9 +6,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <syslog.h>
 
 #include <net.h>
 #include "queue.h"
+#include "rfc2045.h"
 #include "rfc822.h"
 
 struct ih   integral_headers[ ] = { 
@@ -158,4 +160,87 @@ dl_free( d_head )
     }
     *d_head = NULL;
     return;
+}
+
+/* read an rfc822 compliant message and return from, subject, and MIME info
+ *
+ *		-1 on system error
+ * Returns	0 on MIME error
+ *		1 on sucessful MIME extraction
+ *
+ */
+    int
+read_headers( net, from, subj, type, subtype, attribute, value, mime )
+    NET		*net;
+    char	**from, **subj, **type, **subtype, **attribute, **value;
+    int		*mime;
+{
+
+    char	*line, *at;
+
+    *mime = 0;
+
+    while ( ( line = net_getline( net, NULL )) != NULL ) {
+
+        if ( *line == '\0' ) {
+            break;
+        }
+        if ( strncasecmp( "from:", line, 5 ) == 0 ) {
+            /* cut before < */
+            if ( ( at = strchr( line, '<' ) ) != NULL ) {
+                line = at + 1;
+                /* cut off @... */
+                if ( ( at = strchr( line, '@' ) ) != NULL ) {
+                    *at = '\0';
+                }
+                if ( ( *from = (char *)malloc( strlen( line ) + 1 ) ) == NULL) {
+                    syslog( LOG_ERR, "malloc: %m" );
+                    return( -1 );
+                }
+            } else {
+                /* cut off @... */
+                if ( ( at = strchr( line, '@' ) ) != NULL ) {
+                    *at = '\0';
+                }
+                /* sizeof the line - "from: " + null char */
+                if ( ( *from = (char *)malloc( strlen( line ) - 5 ) ) == NULL) {
+                    syslog( LOG_ERR, "malloc: %m" );
+                    return( -1 );
+                }
+                line += 6;
+            }
+            sprintf( *from, "%s", line );
+        }
+        if ( strncasecmp( "Subject:", line, 8 ) == 0 ) {
+            if ( ( strcasecmp( line, "Subject: page sent" ) != 0 ) &&
+                     ( strcmp( line, "Subject:" ) != 0 ) ) {
+                /* sizeof the line - "subject: " + null char */
+                if ( ( *subj = (char *)malloc( strlen( line ) - 8 ) ) == NULL) {
+                    syslog( LOG_ERR, "malloc: %m" );
+                    return( -1 );
+                }
+                line += 9;
+                sprintf( *subj, "%s", line );
+            }
+        }
+#ifdef notdef
+	/*  This is required for the first header, but not required 
+	 *  for subsequent parts of multipart messages...
+	 *  I think we should let it slide...
+	 */
+        if ( strncmp( "MIME-Version:", line, 13 ) == 0 ) {
+            *mime = 1;
+            continue;
+        }
+#endif
+        if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
+	    *mime = 1;
+            if ( parse_content_type( line, &type, &subtype,
+                                    &attribute, &value, net ) < 0 ) {
+                return( 0 );
+            }
+
+        }
+    }
+    return( 1 );
 }

@@ -38,6 +38,7 @@
 #include "path.h"
 #include "sendmail.h"
 #include "compress.h"
+#include "rfc822.h"
 #include "rfc2045.h"
 
 
@@ -462,11 +463,13 @@ queue_read( file )
 {
     struct page		*page;
     char		*a, *b, *line, *at, *from, *subj;
-    char		*type, *subtype, *attribute, *value;
+    char		*type, *subtype, *attribute, *value, *boundary;
     NET			*net;
     int 		offset, state, once;
     int 		mime = 0;
     int			mailerr = 0;
+    int			done = 0;
+    int			ret;
 
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
@@ -517,66 +520,11 @@ queue_read( file )
 
     from = subj = NULL;
 
-    while ( ( line = net_getline( net, NULL )) != NULL ) {
-
-        if ( *line == '\0' ) {
-	    break;
-	}
-	if ( strncasecmp( "from:", line, 5 ) == 0 ) {
-	    /* cut before < */
-	    if ( ( at = strchr( line, '<' ) ) != NULL ) {
-	        line = at + 1;
-		/* cut off @... */
-		if ( ( at = strchr( line, '@' ) ) != NULL ) {
-		    *at = '\0';
-		}
-		if ( ( from = (char *)malloc( strlen( line ) + 1 ) ) == NULL ) {
-		    syslog( LOG_ERR, "malloc: %m" );
-		    exit( 1 );
-		}
-	    } else {
-		/* cut off @... */
-		if ( ( at = strchr( line, '@' ) ) != NULL ) {
-		    *at = '\0';
-		}
-		/* sizeof the line - "from: " + null char */
-		if ( ( from = (char *)malloc( strlen( line ) - 5 ) ) == NULL ) {
-		    syslog( LOG_ERR, "malloc: %m" );
-		    exit( 1 );
-		}
-		line += 6;
-	    }
-	    sprintf( from, "%s", line );
-	}
-	if ( strncasecmp( "Subject:", line, 8 ) == 0 ) {
-	    if ( ( strcasecmp( line, "Subject: page sent" ) != 0 ) && 
-		     ( strcmp( line, "Subject:" ) != 0 ) ) {
-		/* sizeof the line - "subject: " + null char */
-		if ( ( subj = (char *)malloc( strlen( line ) - 8 ) ) == NULL ) {
-		    syslog( LOG_ERR, "malloc: %m" );
-		    exit( 1 );
-		}
-		line += 9;
-		sprintf( subj, "%s", line );
-	    }
-	}
-        if ( strncmp( "MIME-Version:", line, 13 ) == 0 ) {
-	    mime = 1;
-	    continue;
-	}
-	if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
-	    if (!mime) {
-		mailerr++;
-	    }
-	    if ( parse_content_type( line, &type, &subtype, 
-				    &attribute, &value, net ) < 0 ) {
-		mailerr++;
-	    }
-	    
-	    printf( "%s, %s, %s, %s\n", type, subtype, attribute, value );
-
-	}
+    if ( read_headers( net, &from, &subj, &type, &subtype, 
+					&attribute, &value, &mime ) < 0 ) { 
+        exit( -1 );
     }
+
     offset = state = 0;
     if ( subj != NULL ) {
         page_compress( page, &offset, &state, from, TAP_MAXLEN );
@@ -592,19 +540,115 @@ queue_read( file )
     }
     free( from );
     once = 0;
-    while ( ( line = net_getline( net, NULL )) != NULL ) {
-        if ( once != 0 ) {
-	    if ( page_compress( page, &offset, &state, " ", TAP_MAXLEN ) < 0 ) {
+
+    /* Before compressing to send, check if we are unable to display this 
+     * MIME type on a text pager, or if we have a multipart message where
+     * we need to find the readable type later
+     */
+    if ( ( !mime ) ||
+       ( ( strcasecmp( type, "text" ) == 0 ) &&
+         ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
+
+	while ( ( line = net_getline( net, NULL )) != NULL ) {
+	    if ( once != 0 ) {
+		if ( page_compress( page, &offset, &state, " ", 
+						TAP_MAXLEN ) < 0 ) {
+		    break;
+		}
+	    } else {
+		once = 1;
+	    }
+	    if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0) {
 		break;
 	    }
-	} else {
-	    once = 1;
 	}
-	if ( page_compress( page, &offset, &state, line, TAP_MAXLEN ) < 0 ) {
-	    break;
-	}
+	net_close( net );
+	return( page );
     }
-        
+
+    /* If it's not text/plain, check if it's a multipart message */
+
+    if ( ( mime ) &&
+         ( strcasecmp( type, "multipart" ) == 0 ) &&
+         ( strcasecmp( attribute, "boundary" ) == 0 ) ) {
+
+	/* save the boundary so I don't overwrite it with subsequent calls
+	 * to pct
+	 */
+	boundary = strdup( value );
+	
+
+	/* find the boundaries */
+	while ( ( line = net_getline( net, NULL )) != NULL ) {
+
+	    if ( done ) {
+		break;
+	    }
+
+	    if ( ( strncmp( line, "--", 2 ) == 0 ) && 
+		 ( strncmp( boundary, line+2, strlen( boundary ) ) == 0 ) ) {
+
+		/* check for final boundary. Wouldn't want to send the epilogue
+		 * now would we?
+		 */
+		a = line+strlen( boundary )+2;
+		if ( strcmp( a, "--" ) == 0 ) {
+		    break;
+		}
+		 
+		if ( read_headers( net, &from, &subj, &type, &subtype,
+					    &attribute, &value, &mime ) < 0 ) {
+		    exit( -1 );
+		}
+		if ( ( mime == 0 ) ||
+		   ( ( strcasecmp( type, "text" ) == 0 ) && 
+		     ( strcasecmp( subtype, "plain" ) == 0 ) ) ) {
+
+		    /* this is the part we want. */
+		    /* it may be a good idea to move this and the above routine
+		     * for calling page_compress into it's own function.  That 
+		     * eliminate the need for the done part to break an embedded
+		     * loop. But I wouldn't want to over-engineer or anything...
+		     */
+		    while ( ( line = net_getline( net, NULL )) != NULL ) {
+			if ( strncmp( line, "--", 2 ) == 0 ) {
+			    if ( strncmp( boundary, line+2, strlen(boundary) ) 
+									== 0) {
+				/* the end */
+				done = 1;
+				break;
+			    }
+			}
+			if ( once != 0 ) {
+			    if ( page_compress( page, &offset, &state, " ",
+							    TAP_MAXLEN ) < 0 ) {
+				done = 1;
+				break;
+			    }
+			} else {
+			    once = 1;
+			}
+			if ( page_compress( page, &offset, &state, line, 
+							    TAP_MAXLEN ) < 0) {
+			    done = 1;
+			    break;
+			}
+		    }
+		}
+	    }
+	}
+	if ( !done ) {
+	    mailerr++;
+	}
+    } else {
+        mailerr++;
+    }
+
+    if ( mailerr ) {
+	page_compress( page, &offset, &state, 
+		"Unreadable message. Please check your email", TAP_MAXLEN );
+    }
+
     net_close( net );
     return( page );
 }

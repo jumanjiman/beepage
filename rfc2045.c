@@ -15,7 +15,7 @@
 
     int
 parse_content_type( line, type, subtype, attribute, value, net )
-    char        *line, **type, **subtype, **attribute, **value;
+    char        *line, ***type, ***subtype, ***attribute, ***value;
     NET         *net;
 {
     char	*nextline = NULL;
@@ -35,7 +35,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
     }
 
     *k = '\0';
-    *type = strdup( j );
+    **type = strdup( j );
     *k = '/';
     k++;
 
@@ -50,7 +50,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
 	return( -1 );
     }
     *j = '\0';
-    *subtype = strdup( k );
+    **subtype = strdup( k );
     *j = ';';
     j++;
     /* 
@@ -91,7 +91,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
     }
 
     *k = '\0';
-    *attribute = strdup( j );
+    **attribute = strdup( j );
     *k = '=';
     k++;
 
@@ -103,7 +103,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
      *    parse out the value 
      */
 
-    if ( ( j = strchr( k, ';' ) ) == NULL ) {
+    if ( ( j = strchr( k, '\0' ) ) == NULL ) {
 	return( -1 );
     }
     if ( *(j - 1) == '"' ) {
@@ -115,7 +115,7 @@ parse_content_type( line, type, subtype, attribute, value, net )
     }
     
     *j = '\0';
-    *value = strdup( k );
+    **value = strdup( k );
     *j = val_prev;
 
 

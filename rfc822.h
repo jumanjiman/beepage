@@ -31,3 +31,6 @@ void	dl_output ___P(( struct datalines *, struct pqueue * ) );
 void	dl_free ___P(( struct datalines ** ));
 int	parse_header ___P(( char *, int * ));
 struct datalines *dl_alloc ___P(( char * ));
+int	read_headers ___P(( NET *, char**, char**, char**, char**, char**, 
+							    char**, int * ));
+
