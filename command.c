@@ -236,7 +236,18 @@ f_data( net, ac, av )
         return( -1 );
     }
 
+	    
+  
     if ( linecount < 200 ) {
+
+        /* is this REALLY email? check for key headers */
+	if ( ( keyheaders & ( IH_TO | IH_FROM | IH_SUBJ ) ) == 0 ) {
+	    /* Add a line separating our headers from the message if not */
+	    if ( dl_prepend( "", &d_head ) < 0 ) {
+		return( -1 );
+	    }
+	}
+
 	/* Do I have a From:,  To: and Subject: ? */
 	if ( ! ( keyheaders & IH_FROM ) ) {
 	    if ( maildomain != NULL ) {
