@@ -5,6 +5,12 @@
 .SH SYNOPSIS
 .B beepaged 
 [
+.B -V
+] [
+.B -c
+] [
+.B -d
+] [
 .B -r
 ] [
 .B -M
@@ -12,8 +18,14 @@
 ] [
 .B -p
 .I port
+] [
+.B -b
+.I backlog
+] [
+.B -q
+.I max-queue-size
 ]
-.RI /dev/ modem-tty
+.RI /dev/ modem\-tty
 \&.\|.\|.
 .br
 .SH DESCRIPTION
@@ -78,6 +90,12 @@ displays the version of
 .B beepaged
 and exits.
 .TP 20
+.B \-d
+debug mode. Does not disassociate from controlling tty.
+.TP 20
+.B \-c
+checks all configuration files for syntax errors and exits.
+.TP 20
 .B \-r
 checks for syntax errors in
 .B :ETCDIR:/services ,
@@ -101,6 +119,11 @@ listens on, by default 6661.
 defines the maximum queue of pending connections to
 .BR listen (2),
 by default five.
+.TP 20
+.BI \-q\  max-queue-size
+defines the maximum number of queued messages
+.BR beepaged 
+will accept before refusing new connections. By default, this is set to zero, disabling the feature.
 .SH EXAMPLES
 The following example of
 .B :ETCDIR:/services
