@@ -15,6 +15,7 @@
 
 #ifdef KRB
 #ifdef _svr4__
+#include <kerberos/krb.h>
 #else __svr4__
 #include <krb.h>
 #endif __svr4__
@@ -26,7 +27,7 @@ main( ac, av )
     int			ac;
     char		*av[];
 {
-    char		*prog, buf[ 256 ], *line, *to, *from;
+    char		*prog, buf[ 256 ], hostname[ 256 ], *line, *to, *from;
     int			c, err = 0, s, i;
     unsigned short	port = 0;
 #ifdef KRB
@@ -77,27 +78,10 @@ main( ac, av )
 	exit( 1 );
     }
 
-    /* collect message */
     if ( multiple ) {
+	/* open the connection first? */
 	fprintf( stderr, "%s: can't do that yet\n", prog );
 	exit( 1 );
-#ifdef notdef
-	p = buf;
-	while (( fgets( p, sizeof( buf ) - ( p - buf ), stdin )) != NULL ) {
-	    if ( strcmp( p, ".\n" ) == 0 ) {
-		break;
-	    }
-	    len = strlen( p );
-	    p += len - 1;
-	    if ( *p == '\n' ) {
-		*p++ = '\r';
-		*p++ = '\n';
-		*p = '\0';
-	    } else {
-		p++;
-	    }
-	}
-#endif notdef
     } else {
 	buf[ 0 ] = '\0';
 	for ( to = av[ optind++ ]; optind < ac; optind++ ) {
@@ -127,6 +111,7 @@ main( ac, av )
 	herror( host );
 	exit( 1 );
     }
+    strcpy( hostname, hp->h_name );
 
     if (( s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ) {
 	perror( "socket" );
@@ -142,7 +127,7 @@ main( ac, av )
 	if ( connect( s, &sin, sizeof( struct sockaddr_in )) == 0 ) {
 	    break;
 	}
-	perror( hp->h_name );
+	perror( hostname );
     }
     if ( hp->h_addr_list[ i ] == NULL ) {
 	exit( 1 );
@@ -172,29 +157,30 @@ main( ac, av )
     cksum = time( 0 ) ^ getpid();
     strcpy( instance, krb_get_phost( hp->h_name ));
     strcpy( realm, krb_realmofhost( hp->h_name ));
-    if (( rc = krb_mk_req( &auth, "rcmd", instance, realm, cksum )) !=
+    if (( rc = krb_mk_req( &auth, "rcmd", instance, realm, cksum )) ==
 	    KSUCCESS ) {
+	bin2hex( auth.dat, hexktext, auth.length );
+	if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
+	    perror( "net_writef" );
+	    exit( 1 );
+	}
+	if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
+    } else {
 	fprintf( stderr, "%s: %s\n", prog, krb_err_txt[ rc ] );
-	exit( 1 );
-    }
+	fprintf( stderr, "%s: continuing...\n", prog );
+#endif KRB
 
-    bin2hex( auth.dat, hexktext, auth.length );
-    if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
-	perror( "net_writef" );
-	exit( 1 );
+	if (( from = cuserid( NULL )) == NULL ) {
+	    fprintf( stderr, "%s: who are you?\n", prog );
+	    exit( 1 );
+	}
+	if ( net_writef( net, "AUTH NONE %s\r\n", from ) < 0 ) {
+	    perror( "net_writef" );
+	    exit( 1 );
+	}
+	if ( verbose )	printf( ">>> AUTH NONE %s\n", from );
+#ifdef KRB
     }
-    if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
-
-#else KRB
-    if (( from = cuserid( NULL )) == NULL ) {
-	fprintf( stderr, "%s: who are you?\n", prog );
-	exit( 1 );
-    }
-    if ( net_writef( net, "AUTH NONE %s\r\n", from ) < 0 ) {
-	perror( "net_writef" );
-	exit( 1 );
-    }
-    if ( verbose )	printf( ">>> AUTH NONE %s\n", from );
 #endif KRB
 
     if (( line = net_getline( net, NULL )) == NULL ) {
@@ -271,6 +257,6 @@ main( ac, av )
 	exit( 1 );
     }
 
-    printf( "Page queued on %s\n", host );
+    printf( "Page queued on %s\n", hostname );
     exit( 0 );
 }
