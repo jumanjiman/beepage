@@ -414,7 +414,8 @@ modem_send( modem, pin, message, maxlen )
     /*
      * Convert the portion of the message that we'll send to the paging
      * system to a message block.  Replace anything below 0x20 with SP,
-     * strip the high bit of anything above 0x7f.  Note that we don't
+     * strip the high bit of anything above 0x7f.  Replace '+' with '&',
+     * to prevent users from issuing "+++".  Note that we don't
      * modify "message", so the original text will appear in the sendmail
      * confirmation.
      */
@@ -425,6 +426,9 @@ modem_send( modem, pin, message, maxlen )
 	c = toascii( *p );
 	if ( iscntrl( c )) {
 	    c = ' ';
+	}
+	if ( c == '+' ) {
+	    c = '&';
 	}
 	*q++ = c;
     }
