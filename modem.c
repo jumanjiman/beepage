@@ -9,6 +9,7 @@
 #include <syslog.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 #include <net.h>
 
@@ -17,7 +18,7 @@
 
 struct modem		*modems = NULL;
 
-char			*connect = "CONNECT";
+char			*connectstr = "CONNECT";
 char			*banner = "ID=";
 
 modem_add( path )
@@ -157,7 +158,7 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
-    if (( modem->m_net = net_attach( fd )) == NULL ) {
+    if (( modem->m_net = net_attach( fd, 1024 * 1024 )) == NULL ) {
 	syslog( LOG_ERR, "net_attach: %m" );
 	return( -1 );
     }
@@ -169,7 +170,9 @@ modem_connect( modem, service )
     }
 
     for ( i = 0; i < 3; i++ ) {
-	if (( resp = net_getline( modem->m_net, NULL )) == NULL ) {
+	tv.tv_sec = 30;
+	tv.tv_usec = 0;
+	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
 	    syslog( LOG_ERR, "net_getline: reset: %m" );
 	    return( -1 );
 	}
@@ -189,12 +192,14 @@ modem_connect( modem, service )
 	return( -1 );
     }
     for ( i = 0; i < 2; i++ ) {
-	if (( resp = net_getline( modem->m_net, NULL )) == NULL ) {
+	tv.tv_sec = 2 * 60;
+	tv.tv_usec = 0;
+	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
 	    syslog( LOG_ERR, "net_getline: connect: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
-	if ( strncmp( resp, connect, strlen( connect )) == 0 ) {
+	if ( strncmp( resp, connectstr, strlen( connectstr )) == 0 ) {
 	    break;
 	}
     }
@@ -310,17 +315,48 @@ modem_send( modem, pin, message, maxlen )
     struct timeval	tv;
     int			len;
     int			rc;
+    unsigned int	c;
     char		buf[ TAP_MAXLEN ], *resp;
+    unsigned char	*p, *q;
 
+#ifdef notdef
     len = maxlen - ( strlen( pin ) + TAP_OVERHEAD );
 
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
     /* LLL */ syslog( LOG_DEBUG, ">>> %.*s", len, message );
     sprintf( buf, "%s\r%.*s\r", pin, len, message );
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
+#endif notdef
 
-    if (( rc =
-	    net_writef( modem->m_net, "%s%s\r", buf, tap_cksum( buf ))) < 0 ) {
+    /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
+
+    /*
+     * Convert the portion of the message that we'll send to the paging
+     * system to a message block.  Replace anything below 0x20 with SP,
+     * strip the high bit of anything above 0x7f.  Note that we don't
+     * modify "message", so the original text will appear in the sendmail
+     * confirmation.
+     */
+    sprintf( buf, "%s\r", pin );		/* STX */
+    q = (unsigned char *)buf + strlen( buf );
+    len = maxlen - ( strlen( pin ) + TAP_OVERHEAD );
+    for ( p = (unsigned char *)message; *p != '\0' && len > 0; p++, len-- ) {
+	c = toascii( *p );
+	if ( iscntrl( c )) {
+	    c = ' ';
+	}
+	*q++ = c;
+    }
+    *q++ = '\r';
+    *q++ = '';				/* ETX */
+    *q++ = '\0';
+
+    /* LLL */ syslog( LOG_DEBUG, ">>> %s", buf );
+
+    /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
+
+    if (( rc = net_writef( modem->m_net, "%s%s\r", buf,
+	    tap_cksum( buf ))) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
