@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sysexits.h>
 
 #include <net.h>
 
@@ -28,7 +29,7 @@ char			*krb_realmofhost();
 char			*krb_get_phost();
 #endif notdef
 
-char			*host = "tpp";
+char			*host = "beepage";
 char			*version = VERSION;
 
 int			main ___P(( int, char *[] ));
@@ -68,7 +69,7 @@ main( ac, av )
 	switch ( c ) {
 	case 'V' :	/* virgin */
 	    printf( "%s\n", version );
-	    exit( 0 );
+	    exit( EX_OK );
 	    break;
 
 	case 'v' :	/* verbose */
@@ -96,8 +97,10 @@ main( ac, av )
 	}
     }
     if ( err || optind == ac ) {
-	fprintf( stderr, "Usage:\t%s [ -v ] user message ...\n", prog );
-	exit( 1 );
+	fprintf( stderr,
+		"Usage:\t%s [ -v ] [ -h host ] [ -p port ] user message ...\n",
+		prog );
+	exit( EX_USAGE );
     }
 
     if ( optind + 1 == ac ) {
@@ -120,13 +123,13 @@ main( ac, av )
 
     if (( hp = gethostbyname( host )) == NULL ) {
 	fprintf( stderr, "%s: Can't find address.\n", host );
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
     strcpy( hostname, hp->h_name );
 
     if (( s = socket( PF_INET, SOCK_STREAM, 0 )) < 0 ) {
 	perror( "socket" );
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
 
     memset( &sin, 0, sizeof( struct sockaddr_in ));
@@ -140,32 +143,32 @@ main( ac, av )
 		sizeof( struct sockaddr_in )) == 0 ) {
 	    break;
 	}
-	perror( hostname );
+	perror( inet_ntoa( *(struct in_addr *)hp->h_addr_list[ i ] ) );
     }
     if ( hp->h_addr_list[ i ] == NULL ) {
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
 
     if (( net = net_attach( s, 1024 * 1024 )) == NULL ) {
 	perror( "net_attach" );
-	exit( 1 );
+	exit( EX_OSERR );
     }
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
 	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	exit( EX_PROTOCOL );
     }
 
 #ifdef KRB
     if (( hp = gethostbyaddr( (char *)&sin.sin_addr.s_addr,
 	    sizeof( sin.sin_addr.s_addr ), AF_INET )) == NULL ) {
 	fprintf( stderr, "%s: Can't find name.\n", inet_ntoa( sin.sin_addr ));
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
     strcpy( khostname, hp->h_name );
     cksum = time( 0 ) ^ getpid();
@@ -181,13 +184,13 @@ main( ac, av )
 	bin2hex( auth.dat, hexktext, auth.length );
 	if ( net_writef( net, "AUTH KRB4 %s\r\n", hexktext ) < 0 ) {
 	    perror( "net_writef" );
-	    exit( 1 );
+	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> AUTH KRB4 %s\n", hexktext );
 
 	if (( line = net_getline( net, NULL )) == NULL ) {
 	    perror( "net_getline" );
-	    exit( 1 );
+	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
 	if ( *line == '2' ) {
@@ -199,22 +202,22 @@ main( ac, av )
 
     if (( pw = getpwuid( getuid())) == NULL ) {
 	fprintf( stderr, "%s: who are you?\n", prog );
-	exit( 1 );
+	exit( EX_CONFIG );
     }
     if ( net_writef( net, "AUTH NONE %s\r\n", pw->pw_name ) < 0 ) {
 	perror( "net_writef" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> AUTH NONE %s\n", pw->pw_name );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
 	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	exit( EX_DATAERR );
     }
 
 #ifdef KRB
@@ -228,53 +231,53 @@ authdone:
 	for (; optind < ac; optind++ ) {
 	    if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
 		perror( "net_writef" );
-		exit( 1 );
+		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 
 	    if (( line = net_getline( net, NULL )) == NULL ) {
 		perror( "net_getline" );
-		exit( 1 );
+		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( "<<< %s\n", line );
 	    if ( *line != '2' ) {
 		fprintf( stderr, "%s\n", line );
-		exit( 1 );
+		exit( EX_NOUSER );
 	    }
 	}
     } else {
 	if ( net_writef( net, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
 	    perror( "net_writef" );
-	    exit( 1 );
+	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> PAGE %s\n", av[ optind ] );
 	optind++;
 
 	if (( line = net_getline( net, NULL )) == NULL ) {
 	    perror( "net_getline" );
-	    exit( 1 );
+	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( "<<< %s\n", line );
 	if ( *line != '2' ) {
 	    fprintf( stderr, "%s\n", line );
-	    exit( 1 );
+	    exit( EX_NOUSER );
 	}
     }
 
     if ( net_writef( net, "DATA\r\n" ) < 0 ) {
 	perror( "net_writef" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> DATA\n" );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '3' ) {
 	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
 
     if ( multiple ) {
@@ -290,7 +293,7 @@ authdone:
 		    } else {
 			if ( net_writef( net, "." ) < 0 ) {
 			    perror( "net_writef" );
-			    exit( 1 );
+			    exit( EX_IOERR );
 			}
 			if ( verbose )	printf( ">>> ." );
 		    }
@@ -304,21 +307,21 @@ authdone:
 		buf[ strlen( buf ) - 1 ] = '\0';
 		if ( net_writef( net, "%s\r\n", buf ) < 0 ) {
 		    perror( "net_writef" );
-		    exit( 1 );
+		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s\n", buf );
 	    } else {
 		state = ST_TRUNC;
 		if ( net_writef( net, "%s", buf ) < 0 ) {
 		    perror( "net_writef" );
-		    exit( 1 );
+		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s", buf );
 	    }
 	}
 	if ( net_writef( net, "\r\n.\r\n" ) < 0 ) {
 	    perror( "net_writef" );
-	    exit( 1 );
+	    exit( EX_IOERR );
 	}
 	if ( verbose )	printf( ">>> .\n" );
     } else {
@@ -326,7 +329,7 @@ authdone:
 	if ( *av[ optind ] == '.' ) {
 	    if ( net_writef( net, "." ) < 0 ) {
 		perror( "net_writef" );
-		exit( 1 );
+		exit( EX_IOERR );
 	    }
 	    if ( verbose )	printf( "." );
 	}
@@ -334,13 +337,13 @@ authdone:
 	    if ( optind < ac - 1 ) {
 		if ( net_writef( net, "%s ", av[ optind ] ) < 0 ) {
 		    perror( "net_writef" );
-		    exit( 1 );
+		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s ", av[ optind ] );
 	    } else {
 		if ( net_writef( net, "%s\r\n.\r\n", av[ optind ] ) < 0 ) {
 		    perror( "net_writef" );
-		    exit( 1 );
+		    exit( EX_IOERR );
 		}
 		if ( verbose )	printf( "%s\n>>> .\n", av[ optind ] );
 	    }
@@ -349,32 +352,32 @@ authdone:
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
-	exit( 1 );
+	exit( EX_IOERR ) ;
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
 	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	exit( EX_TEMPFAIL );
     }
 
     if ( net_writef( net, "QUIT\r\n" ) < 0 ) {
 	perror( "net_writef" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( ">>> QUIT\n" );
 
     if (( line = net_getline( net, NULL )) == NULL ) {
 	perror( "net_getline" );
-	exit( 1 );
+	exit( EX_IOERR );
     }
     if ( verbose )	printf( "<<< %s\n", line );
     if ( *line != '2' ) {
 	fprintf( stderr, "%s\n", line );
-	exit( 1 );
+	exit( EX_IOERR );
     }
 
     if ( ! quiet ) {
 	printf( "Page queued on %s\n", hostname );
     }
-    exit( 0 );
+    exit( EX_OK );
 }
