@@ -231,12 +231,13 @@ main( ac, av )
 	    perror( pidfile );
 	    exit( 1 );
 	}
+#ifdef notdef
 	/* make sure we *can't* get a lock */
 	if ( flock( pidfd, LOCK_EX | LOCK_NB ) == 0 || errno != EWOULDBLOCK ) {
 	    fprintf( stderr, "%s: no daemon running!\n", prog );
 	    exit( 1 );
 	}
-
+#endif notdef
 	if (( pf = fdopen( pidfd, "r" )) == NULL ) {
 	    fprintf( stderr, "%s: can't fdopen pidfd!\n", pidfile );
 	    exit( 1 );
@@ -343,6 +344,8 @@ main( ac, av )
 	perror( pidfile );
 	exit( 1 );
     }
+#ifdef notdef
+    /* file locking isn't very portable... */
     if ( flock( pidfd, LOCK_EX | LOCK_NB ) < 0 ) {
 	if ( errno == EWOULDBLOCK ) {
 	    fprintf( stderr, "%s: already running!\n", prog );
@@ -351,6 +354,7 @@ main( ac, av )
 	}
 	exit( 1 );
     }
+#endif notdef
     if ( ftruncate( pidfd, (off_t)0 ) < 0 ) {
 	perror( "ftruncate" );
 	exit( 1 );
@@ -401,7 +405,12 @@ main( ac, av )
 	exit( 1 );
     }
     fprintf( pf, "%d\n", (int)getpid());
+
+#ifdef notdef
     fflush( pf );	/* leave pf open, since it's flock-ed */
+#else notdef
+    fclose( pf );
+#endif notdef
 
     /* catch SIGHUP */
     memset( &sa, 0, sizeof( struct sigaction ));
