@@ -13,7 +13,10 @@ struct quser {
 
 struct queue {
     char		*q_sender;
+    int			q_flags;
     struct quser	*q_users;
 };
+
+#define Q_KERBEROS	(1<<0)
 
 struct queue *queue_init();
