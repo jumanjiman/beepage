@@ -396,48 +396,13 @@ modem_send( modem, pin, message, maxlen )
     struct timeval	tv;
     int			len;
     int			rc;
-    unsigned int	c;
     char		buf[ TAP_MAXLEN ], *resp;
-    unsigned char	*p, *q;
 
-#ifdef notdef
     len = maxlen - ( strlen( pin ) + TAP_OVERHEAD );
 
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
     /* LLL */ syslog( LOG_DEBUG, ">>> %.*s", len, message );
     sprintf( buf, "%s\r%.*s\r", pin, len, message );
-    /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
-#endif notdef
-
-    /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
-
-    /*
-     * Convert the portion of the message that we'll send to the paging
-     * system to a message block.  Replace anything below 0x20 with SP,
-     * strip the high bit of anything above 0x7f.  Replace '+' with '&',
-     * to prevent users from issuing "+++".  Note that we don't
-     * modify "message", so the original text will appear in the sendmail
-     * confirmation.
-     */
-    sprintf( buf, "%s\r", pin );		/* STX */
-    q = (unsigned char *)buf + strlen( buf );
-    len = maxlen - ( strlen( pin ) + TAP_OVERHEAD );
-    for ( p = (unsigned char *)message; *p != '\0' && len > 0; p++, len-- ) {
-	c = toascii( *p );
-	if ( iscntrl( c )) {
-	    c = ' ';
-	}
-	if ( c == '+' ) {
-	    c = '&';
-	}
-	*q++ = c;
-    }
-    *q++ = '\r';
-    *q++ = '';				/* ETX */
-    *q++ = '\0';
-
-    /* LLL */ syslog( LOG_DEBUG, ">>> %s", buf );
-
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
 
     if (( rc = net_writef( modem->m_net, "%s%s\r", buf,
