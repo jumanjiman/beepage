@@ -1,6 +1,6 @@
 ################## Some of this may need to be edited ##################
 
-DESTDIR=/usr/local
+DESTDIR=/usr/local/beepage
 MANDIR=${DESTDIR}/man
 BINDIR=${DESTDIR}/bin
 ETCDIR=${DESTDIR}/etc
@@ -10,7 +10,12 @@ ETCDIR=${DESTDIR}/etc
 # on newer systems
 SBINDIR=${DESTDIR}/sbin
 
-TPPDSYSLOG=LOG_LOCAL6
+USRDB=${ETCDIR}/users
+GRPDB=${ETCDIR}/aliases
+SRVDB=${ETCDIR}/services
+PIDFILE=${ETCDIR}/pid
+
+BEEPAGEDSYSLOG=LOG_LOCAL6
 
 # Stock compiler:
 CC=	cc
@@ -45,39 +50,39 @@ INSTALL=	install
 ################ Nothing below should need editing ###################
 
 SRC=    daemon.c command.c argcargv.c config.c queue.c modem.c sendmail.c \
-	tp.c flock.c ${KSRC}
+	compress.c rfc822.c beep.c flock.c ${KSRC}
 DOBJ=	daemon.o command.o argcargv.o config.o queue.o modem.o sendmail.o \
-	flock.o ${KOBJ}
-COBJ=	tp.o ${KOBJ}
+	compress.o flock.o rfc822.o ${KOBJ}
+COBJ=	beep.o ${KOBJ}
 
 INCPATH=	-Ilibnet ${KINCPATH}
-DEFS=	-DLOG_TPPD=${TPPDSYSLOG} ${KDEFS}
+DEFS=	-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS}
 CFLAGS=	${DEFS} ${OPTOPTS} ${INCPATH}
 TAGSFILE=	tags
 LIBPATH=	-Llibnet ${KLIBPATH}
 LIBS=	${ADDLIBS} -lnet ${KLIBS}
 
-all : tppd tp
+all : beepaged beep
 
-tp.o : tp.c
+beep.o : beep.c
 	${CC} ${CFLAGS} \
 	    -DVERSION=\"`cat VERSION`\" \
-	    -c tp.c
+	    -c beep.c
 
-tp : libnet/libnet.a ${COBJ} Makefile
-	${CC} ${CFLAGS} ${LDFLAGS} -o tp ${COBJ} ${LIBPATH} ${LIBS}
+beep : libnet/libnet.a ${COBJ} Makefile
+	${CC} ${CFLAGS} ${LDFLAGS} -o beep ${COBJ} ${LIBPATH} ${LIBS}
 
 daemon.o : daemon.c
 	${CC} ${CFLAGS} \
-	    -D_PATH_USRDB=\"${ETCDIR}/tppd.users\" \
-	    -D_PATH_GRPDB=\"${ETCDIR}/tppd.aliases\" \
-	    -D_PATH_SRVDB=\"${ETCDIR}/tppd.services\" \
-	    -D_PATH_PIDFILE=\"${ETCDIR}/tppd.pid\" \
+	    -D_PATH_USRDB=\"${USRDB}\" \
+	    -D_PATH_GRPDB=\"${GRPDB}\" \
+	    -D_PATH_SRVDB=\"${SRVDB}\" \
+	    -D_PATH_PIDFILE=\"${PIDFILE}\" \
 	    -DVERSION=\"`cat VERSION`\" \
 	    -c daemon.c
 
-tppd : libnet/libnet.a ${DOBJ} Makefile
-	${CC} ${CFLAGS} ${LDFLAGS} -o tppd ${DOBJ} ${LIBPATH} ${LIBS}
+beepaged : libnet/libnet.a ${DOBJ} Makefile
+	${CC} ${CFLAGS} ${LDFLAGS} -o beepaged ${DOBJ} ${LIBPATH} ${LIBS}
 
 FRC :
 
@@ -94,17 +99,22 @@ dist : clean
 	echo ${VERSION} > ${DISTDIR}/VERSION
 
 install : all
-	${INSTALL} -o root -g tpp -m 4750 -c tppd ${SBINDIR}/
-	${INSTALL} -c tp ${BINDIR}/
-	${INSTALL} -m 0444 -c tp.1 ${MANDIR}/man1/
-	sed -e s@:ETCDIR:@${ETCDIR}@ < tppd.8 > tppd.0
-	${INSTALL} -m 0444 tppd.0 ${MANDIR}/man8/tppd.8
-	rm -f tppd.0
+	-mkdir -p ${DESTDIR}
+	-mkdir -p ${SBINDIR}
+	${INSTALL} -o root -g beepage -m 4750 -c beepaged ${SBINDIR}/
+	-mkdir -p ${BINDIR}
+	${INSTALL} -c beep ${BINDIR}/
+	-mkdir -p ${MANDIR}/man1
+	${INSTALL} -m 0444 -c beep.1 ${MANDIR}/man1/
+	-mkdir -p ${MANDIR}/man8
+	sed -e s@:ETCDIR:@${ETCDIR}@ < beepaged.8 > beepaged.0
+	${INSTALL} -m 0444 beepaged.0 ${MANDIR}/man8/beepaged.8
+	rm -f beepaged.0
 
 clean :
 	cd libnet; ${MAKE} ${MFLAGS} clean
 	rm -f a.out core* *.o *.bak *[Ee]rrs tags
-	rm -f tppd tp
+	rm -f beepaged beep
 
 tags : ${SRC}
 	cwd=`pwd`; \
