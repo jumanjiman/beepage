@@ -26,11 +26,11 @@ CC=	cc
 #OPTOPTS=-Wall -Wstrict-prototypes -Wmissing-prototypes -Wconversion -Werror
 
 # For most platforms:
-INSTALL=	install
+#INSTALL=	install
 
 # For Solaris:
-#INSTALL=	/usr/ucb/install
-#ADDLIBS=	-lsocket -lnsl
+INSTALL=	/usr/ucb/install
+ADDLIBS=	-lsocket -lnsl
 
 # To enable Kerberos v4, uncomment these lines.
 #KDEFS=	-DKRB
@@ -44,8 +44,8 @@ INSTALL=	install
 #KLIBS=	-lkrb -ldes
 
 # For Solaris Kerberos v4
-#KINCPATH=	-I/usr/include/kerberos
-#KLIBS=	-lkrb
+KINCPATH=	-I/usr/include/kerberos
+KLIBS=	-lkrb
 
 ################ Nothing below should need editing ###################
 
