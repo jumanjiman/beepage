@@ -24,10 +24,10 @@ pages to an alpha-numeric paging service provider using TAP.
 On startup
 .B beepaged
 checks
-.B :ETCDIR:/beepage.services
-.B :ETCDIR:/beepage.users
+.B :ETCDIR:/services
+.B :ETCDIR:/users
 and
-.B :ETCDIR:/beepage.aliases
+.B :ETCDIR:/aliases
 for syntax errors, changes directory to
 .B /var/spool/beepaged
 and begins listening on the ``tpp'' port (by default 6661) for incoming
@@ -39,7 +39,7 @@ re-use, the next pending queue is serviced.  A separate child is also
 forked for each network connection.
 .LP
 The file
-.B :ETCDIR:/beepage.services
+.B :ETCDIR:/services
 contains the list of paging-service providers, one per line.  Each line
 contains the symbolic service name, the phone number, and an optional
 maximum length.  The service name must exist as a directory in the
@@ -49,27 +49,27 @@ spool area,
 Lines beginning with ``#'' are ignored.
 .LP
 The file
-.B :ETCDIR:/beepage.users
+.B :ETCDIR:/users
 contains a list of users, one per line.  Each line contains a user
 name, flags, the corresponding paging-service provider, PIN and an optional
 email address.  The
 paging-service provider must be listed in
-.BR :ETCDIR:/beepage.services .
+.BR :ETCDIR:/services .
 Valid flags are ``M'' send email confirmation, ``K'' require Kerberos
 authentication, and ``-'' nothing, a place-holder.  
 If the email address is provided, email confirmation will be sent to the 
 specified address.  Lines beginning with ``#'' are ignored.
 .LP
 The file
-.B :ETCDIR:/beepage.aliases
+.B :ETCDIR:/aliases
 contains a list of aliases, one per line.  Each whitespace delimited line 
 contains an alias name and any combination of users, aliases, or files.
 Users must be listed in
-.BR :ETCDIR:/beepage.users ,
+.BR :ETCDIR:/users ,
 aliases must not be users, and aliases cannot contain themselves. A file 
 contained in an alias must be readable when the daemon is started. Files
 can contain users or aliases. Lines in the files and lines in 
-:ETCDIR:/beepage.aliases beginning with ``#'' are ignored.
+:ETCDIR:/aliases beginning with ``#'' are ignored.
 .LP
 .SH OPTIONS
 .TP 20
@@ -80,10 +80,10 @@ and exits.
 .TP 20
 .B \-r
 checks for syntax errors in
-.B :ETCDIR:/beepage.services ,
-.BR :ETCDIR:/beepage.users
+.B :ETCDIR:/services ,
+.BR :ETCDIR:/users
 and
-.BR :ETCDIR:/beepage.aliases
+.BR :ETCDIR:/aliases
 and restarts the currently running
 .BR beepaged .
 .TP 20
@@ -103,7 +103,7 @@ defines the maximum queue of pending connections to
 by default five.
 .SH EXAMPLES
 The following example of
-.B :ETCDIR:/beepage.services
+.B :ETCDIR:/services
 defines two service providers, pagenet and ameritech.  pagenet has a smaller
 than default maximum page length.
 .sp
@@ -118,7 +118,7 @@ than default maximum page length.
 .RE
 .LP
 This example
-.BR :ETCDIR:/beepage.users
+.BR :ETCDIR:/users
 defines three users.  Those wishing to page ann must first authenticate
 with Kerberos.  Both ann and bob receive email confirmation when they
 are sent pages, However, bob's confirmation mail will be sent to 
@@ -137,13 +137,13 @@ necessary, since carol has no other flags.
 .RE
 .LP
 This example
-.BR :ETCDIR:/beepage.aliases
+.BR :ETCDIR:/aliases
 defines 3 aliases containing users, aliases and files.  
 .sp
 .RS
 .nf
        managers	 ann bob
-       oncall	 /usr/local/etc/beepage.oncall
+       oncall	 /usr/local/etc/oncall
        meeting	 managers carol oncall
 .fi
 .RE
