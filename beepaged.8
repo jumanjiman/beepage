@@ -1,4 +1,4 @@
-.TH TPPD "8" "Sept98" "RSUG"
+.TH TPPD "8" "Jan99" "RSUG"
 .SH NAME 
 .B tppd
 \-  text pager protocol daemon
@@ -17,12 +17,17 @@
 \&.\|.\|.
 .br
 .SH DESCRIPTION
+.B Tppd
+receives text pages using the Text Paging Protocol (TPP) and delivers 
+pages to an alpha-numeric paging service provider using TAP.
+.LP
 On startup
 .B tppd
 checks
 .B :ETCDIR:/tppd.services
-and
 .B :ETCDIR:/tppd.users
+and
+.B :ETCDIR:/tppd.aliases
 for syntax errors, changes directory to
 .B /var/spool/tppd
 and begins listening on the ``tpp'' port (by default 6661) for incoming
@@ -46,12 +51,26 @@ Lines beginning with ``#'' are ignored.
 The file
 .B :ETCDIR:/tppd.users
 contains a list of users, one per line.  Each line contains a user
-name, flags, the corresponding paging-service provider and PIN.  The
+name, flags, the corresponding paging-service provider, PIN and an optional
+email address.  The
 paging-service provider must be listed in
 .BR :ETCDIR:/tppd.services .
 Valid flags are ``M'' send email confirmation, ``K'' require Kerberos
-authentication, and ``-'' nothing, a place-holder.  Lines beginning
-with ``#'' are ignored.
+authentication, and ``-'' nothing, a place-holder.  
+If the email address is provided, email confirmation will be sent to the 
+specified address.  Lines beginning with ``#'' are ignored.
+.LP
+The file
+.B :ETCDIR:/tppd.aliases
+contains a list of aliases, one per line.  Each whitespace delimited line 
+contains an alias name and any combination of users, aliases, or files.
+Users must be listed in
+.BR :ETCDIR:/tppd.users ,
+aliases must not be users, and aliases cannot contain themselves. A file 
+contained in an alias must be readable when the daemon is started. Files
+can contain users or aliases. Lines in the files and lines in 
+:ETCDIR:/tppd.aliases beginning with ``#'' are ignored.
+.LP
 .SH OPTIONS
 .TP 20
 .B \-V
@@ -61,9 +80,10 @@ and exits.
 .TP 20
 .B \-r
 checks for syntax errors in
-.B :ETCDIR:/tppd.services
+.B :ETCDIR:/tppd.services ,
+.BR :ETCDIR:/tppd.users
 and
-.BR :ETCDIR:/tppd.users ,
+.BR :ETCDIR:/tppd.aliases
 and restarts the currently running
 .BR tppd .
 .TP 20
@@ -80,7 +100,7 @@ listens on, by default 6661.
 .BI \-b\  backlog
 defines the maximum queue of pending connections to
 .BR listen (2),
-by default 5.
+by default five.
 .SH EXAMPLES
 The following example of
 .B :ETCDIR:/tppd.services
@@ -101,20 +121,34 @@ This example
 .BR :ETCDIR:/tppd.users
 defines three users.  Those wishing to page ann must first authenticate
 with Kerberos.  Both ann and bob receive email confirmation when they
-are sent pages.  Note that carol has the flag ``-''.  This flag is
+are sent pages, However, bob's confirmation mail will be sent to 
+``robert@service.com''.  Note that carol has the flag ``-''.  This flag is
 necessary, since carol has no other flags.
 .sp
 .RS
 .nf
         #
-        # User  Flags   Service         PIN
+        # User  Flags   Service         PIN		EMAIL
         #
-        ann     KM      ameritech       1234567  
-        bob     M       pagenet         54321
-        carol   -       ameritech       0011223
+        ann     KM    ameritech       1234567  
+        bob     M     pagenet         54321	     robert@service.com
+        carol   -     ameritech       0011223
 .fi
 .RE
 .LP
+This example
+.BR :ETCDIR:/tppd.aliases
+defines 3 aliases containing users, aliases and files.  
+.sp
+.RS
+.nf
+       managers	 ann bob
+       oncall	 /usr/local/etc/tppd.oncall
+       meeting	 managers carol oncall
+.fi
+.RE
+.LP
+
 The following example starts
 .B tppd
 on a typical Linux machine.  Users that receive email confirmation of
