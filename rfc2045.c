@@ -38,7 +38,8 @@ parse_content_type( line, type, subtype, attribute, value, net )
 
     *k = '\0';
     type = strdup( j );
-    *k++ = '/';
+    *k = '/';
+    k++;
 
 
 
@@ -53,9 +54,11 @@ parse_content_type( line, type, subtype, attribute, value, net )
     }
     *j = '\0';
     subtype = strdup( k );
-    *j++ = ';';
-    /* I'm hesitant to put the ++ in there... will this line have a CRLF 
-     * at the end? If not, I might go past the buffer... 
+    *j = ';';
+    j++;
+    /* 
+     * How does strchr behave if it's searching forward from a null char?
+     * check on this for a possible bad pointer problem.
      */
 
 
