@@ -1,42 +1,50 @@
 /*
- * Copyright (c) 1997 Regents of The University of Michigan.
+ * Copyright (c) 1998 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  */
 
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/termios.h>
-#include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/time.h>
-#include <sys/resource.h>
-
+#include <sys/socket.h>
+#include <sys/file.h>
 #include <netinet/in.h>
-
-#include <fcntl.h>
-#include <stdio.h>
-#include <strings.h>
+#include <arpa/inet.h>
 #include <syslog.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <netdb.h>
-#include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+#include <net.h>
 
 #include "compat.h"
-
+#include "command.h"
 #include "path.h"
-#include "net.h"
+#include "config.h"
 #include "modem.h"
+#include "queue.h"
 
 int		debug = 0;
 int		backlog = 5;
 
 char		*maildomain = NULL;
+char		*version = VERSION;
+
+void		hup ___P(( int ));
+void		chld ___P(( int ));
+int		main ___P(( int, char *av[] ));
 
     void
-hup()
+hup( sig )
+    int			sig;
 {
-    syslog( LOG_INFO, "reload" );
+    syslog( LOG_INFO, "reload %s", version );
 
     if ( srvdb_read( _PATH_SRVDB ) < 0 ) {
 	syslog( LOG_ERR, "%s: failed", _PATH_SRVDB );
@@ -49,13 +57,13 @@ hup()
 }
 
     void
-chld()
+chld( sig )
+    int			sig;
 {
     int			pid, status;
-    struct rusage	ru;
     extern int		errno;
 
-    while (( pid = wait3( &status, WNOHANG, &ru )) > 0 ) {
+    while (( pid = waitpid( 0, &status, WNOHANG )) > 0 ) {
 
 	/* keep track of queue state */
 	modem_checkin( pid );
@@ -66,9 +74,7 @@ chld()
 		syslog( LOG_ERR, "child %d exited with %d", pid,
 			WEXITSTATUS( status ));
 	    } else {
-		syslog( LOG_INFO, "child %d done usr %d.%d sys %d.%d", pid,
-			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec,
-			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec );
+		syslog( LOG_INFO, "child %d done", pid );
 	    }
 	} else if ( WIFSIGNALED( status )) {
 	    syslog( LOG_ERR, "child %d died on signal %d", pid,
@@ -85,12 +91,13 @@ chld()
     return;
 }
 
+    int
 main( ac, av )
     int		ac;
     char	*av[];
 {
+    struct sigaction	sa, osahup, osachld;
     struct sockaddr_in	sin;
-    struct sigaction	sa;
     struct hostent	*hp;
     struct servent	*se;
     int			c, s, err = 0, fd, sinlen;
@@ -104,14 +111,18 @@ main( ac, av )
     extern int		optind;
     extern char		*optarg;
 
-    if (( prog = rindex( av[ 0 ], '/' )) == NULL ) {
+    if (( prog = strrchr( av[ 0 ], '/' )) == NULL ) {
 	prog = av[ 0 ];
     } else {
 	prog++;
     }
 
-    while (( c = getopt( ac, av, "rcdp:b:M:" )) != -1 ) {
+    while (( c = getopt( ac, av, "Vrcdp:b:M:" )) != -1 ) {
 	switch ( c ) {
+	case 'V' :		/* virgin */
+	    printf( "%s\n", version );
+	    exit( 0 );
+
 	case 'r' :		/* restart server */
 	    restart++;
 	    break;
@@ -172,12 +183,12 @@ main( ac, av )
 	}
 
 	if (( pf = fdopen( pidfd, "r" )) == NULL ) {
-	    fprintf( stderr, "%s: can't fdopen pidfd!\n" );
+	    fprintf( stderr, "%s: can't fdopen pidfd!\n", pidfile );
 	    exit( 1 );
 	}
 	fscanf( pf, "%d\n", &pid );
 	if ( pid <= 0 ) {
-	    fprintf( stderr, "%s: bad pid %d!\n", pid );
+	    fprintf( stderr, "%s: bad pid %d!\n", pidfile, pid );
 	    exit( 1 );
 	}
 	if ( kill( pid, SIGHUP ) < 0 ) {
@@ -222,7 +233,7 @@ main( ac, av )
 	perror( "socket" );
 	exit( 1 );
     }
-    bzero( &sin, sizeof( struct sockaddr_in ));
+    memset( &sin, 0, sizeof( struct sockaddr_in ));
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = INADDR_ANY;
     sin.sin_port = port;
@@ -248,7 +259,7 @@ main( ac, av )
 	}
 	exit( 1 );
     }
-    if ( ftruncate( pidfd, 0 ) < 0 ) {
+    if ( ftruncate( pidfd, (off_t)0 ) < 0 ) {
 	perror( "ftruncate" );
 	exit( 1 );
     }
@@ -261,16 +272,15 @@ main( ac, av )
 
 	switch ( fork()) {
 	case 0 :
+	    if ( setsid() < 0 ) {
+		perror( "setsid" );
+		exit( 1 );
+	    }
 	    dt = getdtablesize();
 	    for ( i = 0; i < dt; i++ ) {
 		if ( i != s && i != pidfd ) {	/* keep socket and pidfd open */
 		    (void)close( i );
 		}
-	    }
-	    if (( i = open( "/dev/tty", O_RDWR, 0 )) >= 0 ) {
-		(void)ioctl( i, TIOCNOTTY, 0 );
-		setpgrp( 0, getpid());
-		(void)close( i );
 	    }
 	    if (( i = open( "/", O_RDONLY, 0 )) != 0 ) {
 		dup2( i, 1 );
@@ -298,32 +308,32 @@ main( ac, av )
 	syslog( LOG_ERR, "can't fdopen pidfd" );
 	exit( 1 );
     }
-    fprintf( pf, "%d\n", getpid());
+    fprintf( pf, "%d\n", (int)getpid());
     fflush( pf );	/* leave pf open, since it's flock-ed */
 
     /* catch SIGHUP */
-    bzero( &sa, sizeof( struct sigaction ));
+    memset( &sa, 0, sizeof( struct sigaction ));
     sa.sa_handler = hup;
-    if ( sigaction( SIGHUP, &sa, 0 ) < 0 ) {
+    if ( sigaction( SIGHUP, &sa, &osahup ) < 0 ) {
 	syslog( LOG_ERR, "sigaction: %m" );
 	exit( 1 );
     }
 
     /* catch SIGCHLD */
-    bzero( &sa, sizeof( struct sigaction ));
+    memset( &sa, 0, sizeof( struct sigaction ));
     sa.sa_handler = chld;
-    if ( sigaction( SIGCHLD, &sa, 0 ) < 0 ) {
+    if ( sigaction( SIGCHLD, &sa, &osachld ) < 0 ) {
 	syslog( LOG_ERR, "sigaction: %m" );
 	exit( 1 );
     }
 
-    syslog( LOG_INFO, "restart" );
+    syslog( LOG_INFO, "restart %s", version );
 
     /*
      * Begin accepting connections.
      */
     for (;;) {
-	queue_check();
+	queue_check( &osachld, &osahup );
 
 	sinlen = sizeof( struct sockaddr_in );
 	if (( fd = accept( s, (struct sockaddr *)&sin, &sinlen )) < 0 ) {
@@ -339,20 +349,24 @@ main( ac, av )
 	case 0 :
 	    close( s );
 
-	    /* default SIGCHLD handler */
-	    bzero( &sa, sizeof( struct sigaction ));
-	    sa.sa_handler = SIG_DFL;
-	    if ( sigaction( SIGCHLD, &sa, 0 ) < 0 ) {
+	    /* reset CHLD and HUP */
+	    if ( sigaction( SIGCHLD, &osachld, 0 ) < 0 ) {
+		syslog( LOG_ERR, "sigaction: %m" );
+		exit( 1 );
+	    }
+	    if ( sigaction( SIGHUP, &osahup, 0 ) < 0 ) {
 		syslog( LOG_ERR, "sigaction: %m" );
 		exit( 1 );
 	    }
 
-	    /* catch SIGHUP */
-	    bzero( &sa, sizeof( struct sigaction ));
-	    sa.sa_handler = SIG_DFL;
-	    if ( sigaction( SIGHUP, &sa, 0 ) < 0 ) {
-		syslog( LOG_ERR, "sigaction: %m" );
-		exit( 1 );
+	    /* why this doesn't work... */
+	    if (( hp = gethostbyaddr( (void *)&sin.sin_addr,
+		    sizeof( struct in_addr ), AF_INET )) == NULL ) {
+		syslog( LOG_INFO, "child for %s",
+			inet_ntoa( sin.sin_addr ));
+	    } else {
+		syslog( LOG_INFO, "child for %s %s",
+			inet_ntoa( sin.sin_addr ), hp->h_name );
 	    }
 
 	    exit( cmdloop( fd ));
@@ -366,17 +380,7 @@ main( ac, av )
 	default :
 	    close( fd );
 	    syslog( LOG_INFO, "child %d for %s", c, inet_ntoa( sin.sin_addr ));
-#ifdef notdef
-	    /* why this doesn't work... */
-	    if (( hp = gethostbyaddr( &sin.sin_addr, sizeof( struct in_addr ),
-		    AF_INET )) == NULL ) {
-		syslog( LOG_INFO, "child %d for %s", c,
-			inet_ntoa( sin.sin_addr ));
-	    } else {
-		syslog( LOG_INFO, "child %d for %s %s", c,
-			inet_ntoa( sin.sin_addr ), hp->h_name );
-	    }
-#endif notdef
+
 	    break;
 	}
     }
