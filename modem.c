@@ -170,7 +170,7 @@ modem_connect( modem, service )
 
     for ( i = 0; i < 3; i++ ) {
 	if (( resp = net_getline( modem->m_net, NULL )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	    syslog( LOG_ERR, "net_getline: reset: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -190,7 +190,7 @@ modem_connect( modem, service )
     }
     for ( i = 0; i < 2; i++ ) {
 	if (( resp = net_getline( modem->m_net, NULL )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	    syslog( LOG_ERR, "net_getline: connect: %m" );
 	    return( -1 );
 	}
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
@@ -236,7 +236,7 @@ modem_connect( modem, service )
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
 	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	    syslog( LOG_ERR, "net_getline: login: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
@@ -259,7 +259,7 @@ modem_connect( modem, service )
 	tv.tv_sec = 10;
 	tv.tv_usec = 0;
 	if (( resp = net_getline( modem->m_net, &tv )) == NULL ) {
-	    syslog( LOG_ERR, "net_getline: %m" );
+	    syslog( LOG_ERR, "net_getline: go ahead: %m" );
 	    return( -1 );
 	}
 	switch ( *resp ) {
@@ -307,22 +307,23 @@ modem_send( modem, pin, message )
     char		*message;
 {
     struct timeval	tv;
-    char		buf[ 256 ], *resp;
+    int			maxlen;
+    int			rc;
+    char		buf[ TAP_MAXLEN ], *resp;
 
-    if ( strlen( pin ) + strlen( message ) + 8 > sizeof( buf )) {
-	syslog( LOG_ERR, "tap message + pin too long" );
-	return( -1 );
-    }
+    maxlen = sizeof( buf ) - ( strlen( pin ) + TAP_OVERHEAD );
 
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", pin );
-    /* LLL */ syslog( LOG_DEBUG, ">>> %s", message );
-    sprintf( buf, "%s\r%s\r", pin, message );
+    /* LLL */ syslog( LOG_DEBUG, ">>> %.*s", maxlen, message );
+    sprintf( buf, "%s\r%.*s\r", pin, maxlen, message );
     /* LLL */ syslog( LOG_DEBUG, ">>> %s", tap_cksum( buf ));
 
-    if ( net_writef( modem->m_net, "%s%s\r", buf, tap_cksum( buf )) < 0 ) {
+    if (( rc =
+	    net_writef( modem->m_net, "%s%s\r", buf, tap_cksum( buf ))) < 0 ) {
 	syslog( LOG_ERR, "net_writef: %m" );
 	return( -1 );
     }
+syslog( LOG_INFO, "modem_send: message length is %d", rc );
 
     for (;;) {
 	tv.tv_sec = 10;
@@ -338,6 +339,10 @@ modem_send( modem, pin, message )
 	case '' :	/* NAK, failed */
 	    syslog( LOG_ERR, "tap checksum or transmission error" );
 	    return( -1 );
+
+	case '' :	/* RS, invalid pager id */
+	    syslog( LOG_ERR, "tap page invalid (pin or length)" );
+	    return( 1 );
 
 	case '' :	/* ESC */
 	    syslog( LOG_ERR, "tap connection closed" );
