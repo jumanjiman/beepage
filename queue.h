@@ -7,6 +7,7 @@ struct quser {
     struct usrdb	*qu_user;
     struct quser	*qu_next;
     int			qu_seq;
+    int			qu_len;
     FILE		*qu_fp;
 };
 
