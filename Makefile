@@ -85,7 +85,7 @@ libnet/libnet.a : FRC
 	cd libnet; ${MAKE} ${MFLAGS} CC=${CC}
 
 VERSION=`date +%y%m%d`
-DISTDIR=../interpage-${VERSION}
+DISTDIR=../beepage-${VERSION}
 
 dist : clean
 	mkdir ${DISTDIR}

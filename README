@@ -1,4 +1,4 @@
-This is the README file for interpage, a Unix, Internet-aware
+This is the README file for beepage, a Unix, Internet-aware
 implementation of TAP.
 
 Contents:
@@ -6,7 +6,7 @@ Contents:
 	    o BUILDING & INSTALLING
 	    o Getting Help
 
-The interpage package includes two programs: tppd, the "Text Page
+The beepage package includes two programs: tppd, the "Text Page
 Protocol" daemon which accepts pages on a well-known TCP port and
 transmits them over one or more modems to a TAP (aka PET, IXA)
 paging-service provider; and tp, a command-line TPP client.
@@ -20,7 +20,7 @@ tppd has been tested on the following systems:
 	OpenBSD	2.3
 	SunOS	4.1.4
 
-Building interpage:
+Building beepage:
 
 1.  Set DESTDIR in the root Makefile.  DESTDIR is the directory below
     which all binaries will be installed.  Setting it causes all
@@ -37,7 +37,7 @@ Building interpage:
 2.  When you've completed the configuration, type "make" at the root of
     the source.  This will make all binaries.
 
-Installing interpage:
+Installing beepage:
 
 1.  The tppd binary is installed setgid "tpp".  This group must exist.
 
@@ -57,11 +57,11 @@ You might be interested in looking at the RSUG home page at
 http://www.umich.edu/~rsug/.
 
 You may report bugs and get help by sending mail to the developers at
-interpage@umich.edu.  If you're reporting bugs, you MUST use the format
+beepage@umich.edu.  If you're reporting bugs, you MUST use the format
 provided in the BUGS file!  We will do our best to help you.
 
 Research Systems Unix Group
-The University of Michigan		interpage@umich.edu
+The University of Michigan		beepage@umich.edu
 c/o Wesley Craig			+1-734-764-2278
 535 W. William St.
 Ann Arbor, Michigan
