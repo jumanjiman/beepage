@@ -54,7 +54,7 @@ chld()
 
     while (( pid = wait3( &status, WNOHANG, &ru )) > 0 ) {
 
-	/* XXX keep track of queue state */
+	/* keep track of queue state */
 	modem_checkin( pid );
 	srvdb_checkin( pid );
 
@@ -63,8 +63,9 @@ chld()
 		syslog( LOG_ERR, "child %d exited with %d", pid,
 			WEXITSTATUS( status ));
 	    } else {
-		syslog( LOG_INFO, "child %d done ut %d st %d", pid,
-			ru.ru_utime.tv_sec, ru.ru_stime.tv_sec );
+		syslog( LOG_INFO, "child %d done usr %d.%d sys %d.%d", pid,
+			ru.ru_utime.tv_sec, ru.ru_utime.tv_usec,
+			ru.ru_stime.tv_sec, ru.ru_stime.tv_usec );
 	    }
 	} else if ( WIFSIGNALED( status )) {
 	    syslog( LOG_ERR, "child %d died on signal %d", pid,
@@ -231,7 +232,7 @@ main( ac, av )
 #ifdef ultrix
     openlog( prog, LOG_NOWAIT|LOG_PID );
 #else ultrix
-    openlog( prog, LOG_NOWAIT|LOG_PID, LOG_TPPD /* XXX */ );
+    openlog( prog, LOG_NOWAIT|LOG_PID, LOG_TPPD );
 #endif ultrix
 
     /* catch SIGHUP */
