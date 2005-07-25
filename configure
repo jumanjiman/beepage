@@ -851,6 +851,8 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --with-ssl=DIR          path to ssl
+  --with-sasl=DIR         path to sasl
   --with-kerberos=DIR     path to kerberos
 
 Some influential environment variables:
@@ -2516,6 +2518,261 @@ _ACEOF
   LIBS="-lsocket $LIBS"
 
 fi
+
+if test \! x_$with_ssl = x_no; then
+
+echo "$as_me:$LINENO: checking for SSL_accept in -lssl" >&5
+echo $ECHO_N "checking for SSL_accept in -lssl... $ECHO_C" >&6
+if test "${ac_cv_lib_ssl_SSL_accept+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lssl  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char SSL_accept ();
+int
+main ()
+{
+SSL_accept ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_ssl_SSL_accept=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_ssl_SSL_accept=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_ssl_SSL_accept" >&5
+echo "${ECHO_T}$ac_cv_lib_ssl_SSL_accept" >&6
+if test $ac_cv_lib_ssl_SSL_accept = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBSSL 1
+_ACEOF
+
+  LIBS="-lssl $LIBS"
+
+else
+
+    echo "$as_me:$LINENO: checking for ssl" >&5
+echo $ECHO_N "checking for ssl... $ECHO_C" >&6
+    ssldirs="/usr/local/openssl /usr/lib/openssl /usr/openssl \
+            /usr/local/ssl /usr/lib/ssl /usr/ssl \
+            /usr/pkg /usr/local /usr"
+
+# Check whether --with-ssl or --without-ssl was given.
+if test "${with_ssl+set}" = set; then
+  withval="$with_ssl"
+  ssldirs="$withval"
+fi;
+    for dir in $ssldirs; do
+        ssldir="$dir"
+        if test -f "$dir/include/openssl/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break;
+        fi
+        if test -f "$dir/include/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break
+        fi
+    done
+    if test x_$found_ssl != x_yes; then
+        { { echo "$as_me:$LINENO: error: cannot find ssl libraries" >&5
+echo "$as_me: error: cannot find ssl libraries" >&2;}
+   { (exit 1); exit 1; }; }
+    else
+        cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBSSL 1
+_ACEOF
+
+        LIBS="$LIBS -lssl -lcrypto";
+        LDFLAGS="$LDFLAGS -L$ssldir/lib";
+    fi
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+fi
+
+
+echo "$as_me:$LINENO: checking for SSLeay_version in -lcrypto" >&5
+echo $ECHO_N "checking for SSLeay_version in -lcrypto... $ECHO_C" >&6
+if test "${ac_cv_lib_crypto_SSLeay_version+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lcrypto  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any gcc2 internal prototype to avoid an error.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+/* We use char because int might match the return type of a gcc2
+   builtin and then its argument prototype would still apply.  */
+char SSLeay_version ();
+int
+main ()
+{
+SSLeay_version ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } &&
+         { ac_try='test -s conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_lib_crypto_SSLeay_version=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+ac_cv_lib_crypto_SSLeay_version=no
+fi
+rm -f conftest.$ac_objext conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+echo "$as_me:$LINENO: result: $ac_cv_lib_crypto_SSLeay_version" >&5
+echo "${ECHO_T}$ac_cv_lib_crypto_SSLeay_version" >&6
+if test $ac_cv_lib_crypto_SSLeay_version = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBCRYPTO 1
+_ACEOF
+
+  LIBS="-lcrypto $LIBS"
+
+else
+
+    echo "$as_me:$LINENO: checking for ssl" >&5
+echo $ECHO_N "checking for ssl... $ECHO_C" >&6
+    ssldirs="/usr/local/openssl /usr/lib/openssl /usr/openssl \
+            /usr/local/ssl /usr/lib/ssl /usr/ssl \
+            /usr/pkg /usr/local /usr"
+
+# Check whether --with-ssl or --without-ssl was given.
+if test "${with_ssl+set}" = set; then
+  withval="$with_ssl"
+  ssldirs="$withval"
+fi;
+    for dir in $ssldirs; do
+        ssldir="$dir"
+        if test -f "$dir/include/openssl/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break;
+        fi
+        if test -f "$dir/include/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break
+        fi
+    done
+    if test x_$found_ssl != x_yes; then
+        { { echo "$as_me:$LINENO: error: cannot find ssl libraries" >&5
+echo "$as_me: error: cannot find ssl libraries" >&2;}
+   { (exit 1); exit 1; }; }
+    else
+        cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBSSL 1
+_ACEOF
+
+        LIBS="$LIBS -lssl -lcrypto";
+        LDFLAGS="$LDFLAGS -L$ssldir/lib";
+    fi
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+
+fi
+
+fi
+
+    echo "$as_me:$LINENO: checking for sasl" >&5
+echo $ECHO_N "checking for sasl... $ECHO_C" >&6
+    sasldirs="/usr/local/sasl2 /usr/lib/sasl2 /usr/sasl2 \
+            /usr/pkg /usr/local /usr"
+
+# Check whether --with-sasl or --without-sasl was given.
+if test "${with_sasl+set}" = set; then
+  withval="$with_sasl"
+  sasldirs="$withval"
+fi;
+    if test x_$withval != x_no; then
+        for dir in $sasldirs; do
+            sasldir="$dir"
+            if test -f "$dir/include/sasl/sasl.h"; then
+                found_sasl="yes";
+                CPPFLAGS="$CPPFLAGS -I$sasldir/include";
+                break;
+            fi
+            if test -f "$dir/include/sasl.h"; then
+                found_sasl="yes";
+                CPPFLAGS="$CPPFLAGS -I$sasldir/include";
+                break
+            fi
+        done
+        if test x_$found_sasl == x_yes; then
+            cat >>confdefs.h <<\_ACEOF
+#define HAVE_LIBSASL 1
+_ACEOF
+
+            LIBS="$LIBS -lsasl2";
+            LDFLAGS="$LDFLAGS -L$sasldir/lib";
+            echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+        else
+            echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+        fi
+    else
+        echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+    fi
 
 
 kdefs="${kdefs}"

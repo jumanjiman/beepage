@@ -5,9 +5,9 @@
 
 #ifdef __STDC__
 #define ___P(x)		x
-#else __STDC__
+#else
 #define ___P(x)		()
-#endif __STDC__
+#endif /* __STDC__ */
 
 int             bin2hex ___P(( char *, char *, int ));
 int             hex2bin ___P(( char *, char * ));

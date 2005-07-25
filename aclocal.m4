@@ -99,3 +99,69 @@ AC_DEFUN([CHECK_KERBEROS],
 	AC_MSG_RESULT(no)
     fi
 ])
+AC_DEFUN([CHECK_SSL],
+[
+    AC_MSG_CHECKING(for ssl)
+    ssldirs="/usr/local/openssl /usr/lib/openssl /usr/openssl \
+            /usr/local/ssl /usr/lib/ssl /usr/ssl \
+            /usr/pkg /usr/local /usr"
+    AC_ARG_WITH(ssl,
+            AC_HELP_STRING([--with-ssl=DIR], [path to ssl]),
+            ssldirs="$withval")
+    for dir in $ssldirs; do
+        ssldir="$dir"
+        if test -f "$dir/include/openssl/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break;
+        fi
+        if test -f "$dir/include/ssl.h"; then
+            found_ssl="yes";
+            CPPFLAGS="$CPPFLAGS -I$ssldir/include";
+            break
+        fi
+    done
+    if test x_$found_ssl != x_yes; then
+        AC_MSG_ERROR(cannot find ssl libraries)
+    else
+        AC_DEFINE(HAVE_LIBSSL)
+        LIBS="$LIBS -lssl -lcrypto";
+        LDFLAGS="$LDFLAGS -L$ssldir/lib";
+    fi
+    AC_MSG_RESULT(yes)
+])
+
+AC_DEFUN([CHECK_SASL],
+[
+    AC_MSG_CHECKING(for sasl)
+    sasldirs="/usr/local/sasl2 /usr/lib/sasl2 /usr/sasl2 \
+            /usr/pkg /usr/local /usr"
+    AC_ARG_WITH(sasl,
+            AC_HELP_STRING([--with-sasl=DIR], [path to sasl]),
+            sasldirs="$withval")
+    if test x_$withval != x_no; then
+        for dir in $sasldirs; do
+            sasldir="$dir"
+            if test -f "$dir/include/sasl/sasl.h"; then
+                found_sasl="yes";
+                CPPFLAGS="$CPPFLAGS -I$sasldir/include";
+                break;
+            fi
+            if test -f "$dir/include/sasl.h"; then
+                found_sasl="yes";
+                CPPFLAGS="$CPPFLAGS -I$sasldir/include";
+                break
+            fi
+        done
+        if test x_$found_sasl == x_yes; then
+            AC_DEFINE(HAVE_LIBSASL)
+            LIBS="$LIBS -lsasl2";
+            LDFLAGS="$LDFLAGS -L$sasldir/lib";
+            AC_MSG_RESULT(yes)
+        else
+            AC_MSG_RESULT(no)
+        fi
+    else
+        AC_MSG_RESULT(no)
+    fi
+])

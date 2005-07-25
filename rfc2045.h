@@ -5,9 +5,9 @@
 
 #ifdef __STDC__
 #define ___P(x)         x
-#else __STDC__
+#else
 #define ___P(x)         ()
-#endif __STDC__
+#endif /* __STDC__ */
 
 int	parse_content_type ___P(( char *, char ***, char ***, char ***, 
 				    char ***, SNET *sn ));

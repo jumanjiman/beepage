@@ -51,4 +51,4 @@ flock( fd, operation )
     }
     return( rc );
 }
-# endif sun __svr4__
+# endif /* sun __svr4__ */

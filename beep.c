@@ -22,12 +22,12 @@
 
 #ifdef KRB
 #include <krb.h>
-#endif KRB
+#endif /* KRB */
 
 #ifdef notdef
 char			*krb_realmofhost();
 char			*krb_get_phost();
-#endif notdef
+#endif /* notdef */
 
 char			*host = "beepage";
 char			*version = VERSION;
@@ -50,7 +50,7 @@ main( ac, av )
     char		hexktext[ MAX_KTXT_LEN * 2 + 1 ];
     char		instance[ INST_SZ ], realm[ REALM_SZ ];
     char		khostname[ 256 ];
-#endif KRB
+#endif /* KRB */
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
@@ -203,7 +203,7 @@ main( ac, av )
 	}
 	fprintf( stderr, "%s\n", line );
     }
-#endif KRB
+#endif /* KRB */
     if (( pw = getpwuid( getuid())) == NULL ) {
 	fprintf( stderr, "%s: who are you?\n", prog );
 	exit( EX_CONFIG );
@@ -229,7 +229,7 @@ main( ac, av )
  * This let's us skip the "AUTH NONE" method when "AUTH KRB" succeeds.
  */
 authdone:
-#endif KRB
+#endif /* KRB */
 
     if ( multiple ) {
 	for (; optind < ac; optind++ ) {

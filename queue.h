@@ -31,9 +31,9 @@ struct page {
 
 #ifdef __STDC__
 #define ___P(x)		x
-#else __STDC__
+#else
 #define ___P(x)		()
-#endif __STDC__
+#endif /* __STDC__ */
 
 int		queue_count ___P(( void ));
 void		queue_printf ___P(( struct pqueue *, char *, ... ));

@@ -6,7 +6,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
-#include <sys/time.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -20,13 +19,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <errno.h>
 
 #ifdef __STDC__
 #include <stdarg.h>
-#else __STDC__
+#else
 #include <varargs.h>
-#endif __STDC__
+#endif /* __STDC__ */
 
 #include <snet.h>
 
@@ -77,20 +77,20 @@ queue_count()
     void
 #ifdef __STDC__
 queue_printf( struct pqueue *pq, char *format, ... ) 
-#else __STDC__
+#else
 queue_printf( pq, format, va_alist )
     struct pqueue *pq;
     char *format;
-#endif __STDC__
+#endif /* __STDC__ */
 {
     va_list val;
     struct quser *qu;
 
 #ifdef __STDC__
     va_start( val, format );
-#else __STDC__
+#else
     va_start( val );
-#endif __STDC__
+#endif /* __STDC__ */
 
     for ( qu = pq->q_users; qu != NULL; qu = qu->qu_next ) {
         vfprintf( qu->qu_fp, format, val );
@@ -462,14 +462,11 @@ queue_read( file )
     char		*file;
 {
     struct page		*page;
-    char		*a, *b, *line, *at, *from, *subj;
+    char		*a, *line, *from, *subj;
     char		*type, *subtype, *attribute, *value, *boundary;
     SNET		*sn;
     int 		offset, state;
     int 		mime = 0;
-    int			mailerr = 0;
-    int			done = 0;
-    int			ret;
 
     if (( page = (struct page *)malloc( sizeof( struct page ))) == NULL ) {
 	syslog( LOG_ERR, "malloc: %m" );
@@ -686,7 +683,7 @@ queue_check( osachld, osahup )
 			syslog( LOG_ERR, "modem_connect: %s: %m", s->s_name );
 			exit( 1 );
 		    }
-#endif NOMODEM
+#endif /* NOMODEM */
 		    for (;;) {
 			cnt = 0;
 			if (( dirp = opendir( "." )) == NULL ) {
@@ -746,11 +743,11 @@ queue_check( osachld, osahup )
 				subject = "page failed";
 				break;
 			    }
-#endif NOMODEM
+#endif /* NOMODEM */
 
 #ifdef NOMODEM
 			    printf( "%s\n", page->p_message );
-#endif NOMODEM
+#endif /* NOMODEM */
 
 			    /*
 			     * There are two subjects, each of which
@@ -789,7 +786,7 @@ queue_check( osachld, osahup )
 				s->s_name );
 			exit( 1 );
 		    }
-#endif NOMODEM
+#endif /* NOMODEM */
 		    exit( 0 );
 
 		case -1 :

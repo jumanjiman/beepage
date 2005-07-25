@@ -237,7 +237,7 @@ main( ac, av )
 	    fprintf( stderr, "%s: no daemon running!\n", prog );
 	    exit( 1 );
 	}
-#endif notdef
+#endif /* notdef */
 	if (( pf = fdopen( pidfd, "r" )) == NULL ) {
 	    fprintf( stderr, "%s: can't fdopen pidfd!\n", pidfile );
 	    exit( 1 );
@@ -354,7 +354,7 @@ main( ac, av )
 	}
 	exit( 1 );
     }
-#endif notdef
+#endif /* notdef */
     if ( ftruncate( pidfd, (off_t)0 ) < 0 ) {
 	perror( "ftruncate" );
 	exit( 1 );
@@ -396,9 +396,9 @@ main( ac, av )
      */
 #ifdef ultrix
     openlog( prog, LOG_NOWAIT|LOG_PID );
-#else ultrix
+#else
     openlog( prog, LOG_NOWAIT|LOG_PID, LOG_BEEPAGED );
-#endif ultrix
+#endif /* ultrix */
 
     if (( pf = fdopen( pidfd, "w" )) == NULL ) {
 	syslog( LOG_ERR, "can't fdopen pidfd" );
@@ -408,9 +408,9 @@ main( ac, av )
 
 #ifdef notdef
     fflush( pf );	/* leave pf open, since it's flock-ed */
-#else notdef
+#else
     fclose( pf );
-#endif notdef
+#endif /* notdef */
 
     /* catch SIGHUP */
     memset( &sa, 0, sizeof( struct sigaction ));

@@ -2,9 +2,9 @@
 #include <ctype.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <snet.h>
 #include <sys/types.h>
 #include <netinet/in.h>
+#include <snet.h>
 
 
 #include "queue.h"

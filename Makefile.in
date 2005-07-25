@@ -19,13 +19,13 @@ PIDFILE=${ETCDIR}/pid
 BEEPAGEDSYSLOG=LOG_LOCAL6
 
 CC=		@CC@
-LIBS=		@LIBS@ -lsnet
-LDFLAGS=	@LDFLAGS@ -Llibsnet
+LIBS=		-lsnet @LIBS@
+LDFLAGS=	@LDFLAGS@ -Llibsnet/.libs
 INSTALL=	@INSTALL@
 CWARN=		-Wall -Wmissing-prototypes
 DEFS=		-DLOG_BEEPAGED=${BEEPAGEDSYSLOG} ${KDEFS}		
 
-CFLAGS= ${CWARN} -g ${DEFS} @CFLAGS@ -Ilibsnet
+CFLAGS= ${CWARN} -g ${DEFS} @CFLAGS@ -Ilibsnet 
 
 
 # For debugging, skip modem code

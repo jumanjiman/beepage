@@ -6,4 +6,4 @@
 #define _PATH_SPOOL	"/var/spool/beepaged"
 #ifndef _PATH_SENDMAIL
 #define _PATH_SENDMAIL	"/usr/lib/sendmail"
-#endif _PATH_SENDMAIL
+#endif /* _PATH_SENDMAIL */

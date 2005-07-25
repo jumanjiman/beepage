@@ -19,7 +19,7 @@
 
 #ifdef KRB
 #include <krb.h>
-#endif KRB
+#endif /* KRB */
 
 #include "binhex.h"
 #include "queue.h"
@@ -82,7 +82,7 @@ f_auth( sn, ac, av )
     AUTH_DAT	ad;
     char	instance[ INST_SZ ];
     int		rc;
-#endif KRB
+#endif /* KRB */
 
     if ( ac != 3 ) {
 	snet_writef( sn, "%d AUTH syntax error\r\n", 510 );
@@ -114,7 +114,7 @@ f_auth( sn, ac, av )
 	snet_writef( sn, "%d AUTH KRB4 as %s succeeds\r\n", 211, ad.pname );
 	return( 0 );
     } else
-#endif KRB
+#endif /* KRB */
     if ( strcasecmp( "NONE", av[ 1 ] ) == 0 ) {
 	if (( pq = queue_init( av[ 2 ], 0, sn )) == NULL ) {
 	    snet_writef( sn, "%d User %s not permitted\r\n", 414, av[ 2 ] );
@@ -157,7 +157,7 @@ f_page( sn, ac, av )
 	snet_writef( sn, "%d User %s requires Kerberos authentication\r\n",
 		422, av[ 1 ] );
 	return( 1 );
-#endif KRB
+#endif /* KRB */
 
     case 0 :
 	snet_writef( sn, "%d User %s ok\r\n", 220, av[ 1 ] );
@@ -320,7 +320,7 @@ struct command	commands[] = {
 #ifdef notdef
     { "CONFIRM",	f_confirm },	/* confirmation address */
     { "QUEUE",	f_queue },	/* list paging queue's contents */
-#endif notdef
+#endif /* notdef */
 };
 
 int		ncommands = sizeof( commands ) / sizeof( commands[ 0 ] );

@@ -43,9 +43,9 @@ struct grpdb {
 
 #ifdef __STDC__
 #define ___P(x)		x
-#else __STDC__
+#else
 #define ___P(x)		()
-#endif __STDC__
+#endif /* __STDC__ */
 
 struct usrdb		*usrdb_find ___P(( char * ));
 int			usrdb_read ___P(( char * ));
