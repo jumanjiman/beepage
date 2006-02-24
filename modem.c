@@ -123,10 +123,12 @@ modem_disconnect( modem )
 
     for ( i = 0; i < 3; i++ ) {
 	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
+	sleep( 1 );
 	if ( snet_writef( modem->m_net, "+++" ) < 0 ) {
 	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
 	}
+	sleep( 1 );
 
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
@@ -226,10 +228,12 @@ modem_connect( modem, service )
 
     for ( i = 0; i < 2; i++ ) {
 	/* LLL */ syslog( LOG_DEBUG, ">>> +++" );
+	sleep( 1 );
 	if ( snet_writef( modem->m_net, "+++" ) < 0 ) {
 	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
 	}
+	sleep( 1 );
 
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
@@ -288,7 +292,7 @@ modem_connect( modem, service )
 	return( -1 );
     }
 
-    for ( i = 0; i < 3; i++ ) {
+    for ( i = 0; i < 6; i++ ) {
 	if ( snet_writef( modem->m_net, "\r" ) < 0 ) {
 	    syslog( LOG_ERR, "snet_writef: %m" );
 	    return( -1 );
@@ -307,7 +311,7 @@ modem_connect( modem, service )
 	    break;
 	}
     }
-    if ( i == 3 ) {
+    if ( i == 6 ) {
 	syslog( LOG_ERR, "tap banner missing from %s", service->s_name );
 	return( -1 );
     }

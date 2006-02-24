@@ -9,7 +9,7 @@ SBINDIR=@sbindir@
 KDEFS=@kdefs@
 KSRC=@ksrc@
 KOBJ=@kobj@
-ETCDIR=${prefix}/etc
+ETCDIR=@sysconfdir@
 
 USRDB=${ETCDIR}/users
 GRPDB=${ETCDIR}/aliases
@@ -77,13 +77,13 @@ DISTDIR=../beepage-${VERSION}
 
 dist : clean
 	mkdir ${DISTDIR}
-	tar chfFFX - EXCLUDE . | ( cd ${DISTDIR}; tar xvf - )
+	tar -h -c -f - -X EXCLUDE . | tar xpf - -C ${DISTDIR}
 	chmod +w ${DISTDIR}/Makefile
 	echo ${VERSION} > ${DISTDIR}/VERSION
 
 install : all
 	-mkdir -p ${SBINDIR}
-	${INSTALL} -o root -g wheel -m 4750 -c beepaged ${SBINDIR}/
+	${INSTALL} -c beepaged ${SBINDIR}/
 	-mkdir -p ${BINDIR}
 	${INSTALL} -c beep ${BINDIR}/
 	-mkdir -p ${MANDIR}/man1

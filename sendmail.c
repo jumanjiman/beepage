@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <paths.h>
 
 #include "path.h"
 #include "sendmail.h"
