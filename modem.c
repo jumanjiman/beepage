@@ -298,9 +298,7 @@ modem_connect( modem, service )
 	    return( -1 );
 	}
 
-	tv.tv_sec = 2;
-	tv.tv_usec = 0;
-	if (( cc = snet_read( modem->m_net, buf, sizeof( buf ), &tv )) < 0 ) {
+	if (( cc = snet_read( modem->m_net, buf, sizeof( buf ), NULL )) < 0 ) {
 	    syslog( LOG_ERR, "snet_read: %m" );
 	    continue;
 	}
