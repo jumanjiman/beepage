@@ -304,8 +304,8 @@ modem_connect( modem, service )
 	}
 	/* LLL */syslog( LOG_DEBUG, "<<< %.*s", cc, buf );
 
-	len = strlen( banner );
-	if (( cc >= len ) && ( strncmp( buf, banner, len ) == 0 )) {
+	buf[ cc ] = '\0';
+	if ( strstr( buf, banner ) != NULL ) {
 	    break;
 	}
     }
