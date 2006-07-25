@@ -14,6 +14,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <snet.h>
 
@@ -180,7 +181,7 @@ modem_connect( modem, service )
     struct timeval	tv;
     char		*resp, buf[ 1024 ];
     int			fd, i;
-    unsigned		len, speed;
+    unsigned		speed;
     int			cc, flags;
 
     if (( fd = open( modem->m_path, O_RDWR | O_NONBLOCK, 0 )) < 0 ) {
