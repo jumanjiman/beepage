@@ -234,11 +234,11 @@ read_headers( sn, from, subj, type, subtype, attribute, value, mime )
         }
 #endif
         if ( strncmp( "Content-Type:", line, 13 ) == 0 ) {
-	    *mime = 1;
             if ( parse_content_type( line, &type, &subtype,
                                     &attribute, &value, sn ) < 0 ) {
-                return( 0 );
+                continue;
             }
+	    *mime = 1;
 
         }
     }

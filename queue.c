@@ -519,7 +519,7 @@ queue_read( file )
 
     if ( read_headers( sn, &from, &subj, &type, &subtype, 
 					&attribute, &value, &mime ) < 0 ) { 
-        exit( -1 );
+        exit( 1 );
     }
 
     offset = state = 0;
@@ -582,7 +582,7 @@ queue_read( file )
 		 
 		if ( read_headers( sn, &from, &subj, &type, &subtype,
 					    &attribute, &value, &mime ) < 0 ) {
-		    exit( -1 );
+		    exit( 1 );
 		}
 		if ( ( mime == 0 ) ||
 		   ( ( strcasecmp( type, "text" ) == 0 ) && 
