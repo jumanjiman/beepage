@@ -106,7 +106,7 @@ queue_init( sender, flags, sn )
     SNET		*sn;
 {
     struct pqueue	*q;
-    int			sinlen;
+    socklen_t		sinlen;
 
     /* XXX check deny list */
 

@@ -127,7 +127,8 @@ main( ac, av )
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
-    int			c, s, err = 0, fd, sinlen, trueint;
+    int			c, s, err = 0, fd, trueint;
+    socklen_t		sinlen;
     int			dontrun = 0;
     int			restart = 0;
     int			pidfd;
@@ -398,7 +399,7 @@ main( ac, av )
     openlog( prog, LOG_NOWAIT|LOG_PID );
 #else
     openlog( prog, LOG_NOWAIT|LOG_PID, LOG_BEEPAGED );
-#endif /* ultrix */
+#endif // ultrix
 
     if (( pf = fdopen( pidfd, "w" )) == NULL ) {
 	syslog( LOG_ERR, "can't fdopen pidfd" );
