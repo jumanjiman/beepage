@@ -36,6 +36,9 @@
 int		debug = 0;
 int		backlog = 5;
 
+int		reload = 0;
+int		child_signal = 0;
+
 char		*maildomain = NULL;
 char		*version = VERSION;
 
@@ -47,74 +50,15 @@ int		main ___P(( int, char *av[] ));
 hup( sig )
     int			sig;
 {
-
-    struct srvdb	*srv, *first;
-    struct stat		q_stat;
-
-    syslog( LOG_INFO, "reload %s", version );
-
-    if ( srvdb_read( _PATH_SRVDB ) < 0 ) {
-	syslog( LOG_ERR, "%s: failed", _PATH_SRVDB );
-	exit( 1 );
-    }
-    if ( usrdb_read( _PATH_USRDB ) < 0 ) {
-	syslog( LOG_ERR, "%s: failed", _PATH_USRDB );
-	exit( 1 );
-    }
-    if ( grpdb_read( _PATH_GRPDB ) < 0 ) {
-	syslog( LOG_ERR, "%s: failed", _PATH_GRPDB );
-	exit( 1 );
-    }
-
-    srv = first = srvdb_next();
-    do {
-	/* create any needed spool dirs */
-	if ( stat( srv->s_name, &q_stat ) < 0 ) {
-	    if ( errno == ENOENT ) {
-		if ( mkdir( srv->s_name, 0755 ) < 0 ) {
-		    perror( srv->s_name );
-		    exit( 1 );
-		}
-	    } else {
-		perror( srv->s_name );
-		exit( 1 );
-	    }
-	}
-    } while (( srv = srvdb_next()) != first );
+    reload++;
+    return;
 }
 
     void
 chld( sig )
     int			sig;
 {
-    int			pid, status;
-    extern int		errno;
-
-    while (( pid = waitpid( 0, &status, WNOHANG )) > 0 ) {
-
-	/* keep track of queue state */
-	modem_checkin( pid );
-	srvdb_checkin( pid );
-
-	if ( WIFEXITED( status )) {
-	    if ( WEXITSTATUS( status )) {
-		syslog( LOG_ERR, "child %d exited with %d", pid,
-			WEXITSTATUS( status ));
-	    } else {
-		syslog( LOG_INFO, "child %d done", pid );
-	    }
-	} else if ( WIFSIGNALED( status )) {
-	    syslog( LOG_ERR, "child %d died on signal %d", pid,
-		    WTERMSIG( status ));
-	} else {
-	    syslog( LOG_ERR, "child %d died", pid );
-	}
-    }
-
-    if ( pid < 0 && errno != ECHILD ) {
-	syslog( LOG_ERR, "wait3: %m" );
-	exit( 1 );
-    }
+    child_signal++;
     return;
 }
 
@@ -435,6 +379,74 @@ main( ac, av )
      * Begin accepting connections.
      */
     for (;;) {
+	if ( reload ) {
+	    struct srvdb	*srv, *first;
+	    struct stat		q_stat;
+
+	    reload = 0;
+	    syslog( LOG_INFO, "reload %s", version );
+
+	    if ( srvdb_read( _PATH_SRVDB ) < 0 ) {
+		syslog( LOG_ERR, "%s: failed", _PATH_SRVDB );
+		exit( 1 );
+	    }
+	    if ( usrdb_read( _PATH_USRDB ) < 0 ) {
+		syslog( LOG_ERR, "%s: failed", _PATH_USRDB );
+		exit( 1 );
+	    }
+	    if ( grpdb_read( _PATH_GRPDB ) < 0 ) {
+		syslog( LOG_ERR, "%s: failed", _PATH_GRPDB );
+		exit( 1 );
+	    }
+
+	    srv = first = srvdb_next();
+	    do {
+		/* create any needed spool dirs */
+		if ( stat( srv->s_name, &q_stat ) < 0 ) {
+		    if ( errno == ENOENT ) {
+			if ( mkdir( srv->s_name, 0755 ) < 0 ) {
+			    perror( srv->s_name );
+			    exit( 1 );
+			}
+		    } else {
+			perror( srv->s_name );
+			exit( 1 );
+		    }
+		}
+	    } while (( srv = srvdb_next()) != first );
+	}
+
+	if ( child_signal ) {
+	    int			pid, status;
+	    extern int		errno;
+
+	    child_signal = 0;
+	    while (( pid = waitpid( 0, &status, WNOHANG )) > 0 ) {
+		/* keep track of queue state */
+		modem_checkin( pid );
+		srvdb_checkin( pid );
+
+		if ( WIFEXITED( status )) {
+		    if ( WEXITSTATUS( status )) {
+			syslog( LOG_ERR, "child %d exited with %d", pid,
+				WEXITSTATUS( status ));
+		    } else {
+			syslog( LOG_INFO, "child %d done", pid );
+		    }
+		} else if ( WIFSIGNALED( status )) {
+		    syslog( LOG_ERR, "child %d died on signal %d", pid,
+			    WTERMSIG( status ));
+		} else {
+		    syslog( LOG_ERR, "child %d died", pid );
+		}
+	    }
+
+	    if ( pid < 0 && errno != ECHILD ) {
+		syslog( LOG_ERR, "wait3: %m" );
+		exit( 1 );
+	    }
+	}
+
 	queue_check( &osachld, &osahup );
 
 	sinlen = sizeof( struct sockaddr_in );
