@@ -51,6 +51,7 @@ main( ac, av )
     char		instance[ INST_SZ ], realm[ REALM_SZ ];
     char		khostname[ 256 ];
 #endif /* KRB */
+    struct timeval	tv;
     struct sockaddr_in	sin;
     struct hostent	*hp;
     struct servent	*se;
@@ -150,6 +151,10 @@ main( ac, av )
 	    perror( "snet_attach" );
 	    exit( EX_OSERR );
 	}
+
+	tv.tv_sec = 10 * 60;
+	tv.tv_usec = 0;
+	snet_timeout( sn, SNET_READ_TIMEOUT | SNET_WRITE_TIMEOUT, &tv );
 
 	if (( line = snet_getline( sn, NULL )) == NULL ) {
 	    perror( "snet_getline" );
