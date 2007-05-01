@@ -24,6 +24,7 @@
 struct modem		*modems = NULL;
 
 char			*connectstr = "CONNECT";
+char			*nocarrier = "NO CARRIER";
 char			*banner = "ID=";
 
 char			*tap_cksum ___P(( char * ));
@@ -277,7 +278,7 @@ modem_connect( modem, service )
 	return( -1 );
     }
     for ( i = 0; i < 3; i++ ) {
-	tv.tv_sec = 5 * 60;
+	tv.tv_sec = 30;
 	tv.tv_usec = 0;
 	while (( resp = snet_getline( modem->m_net, &tv )) == NULL ) {
 	    syslog( LOG_ERR, "snet_getline: connect: %m" );
@@ -286,6 +287,10 @@ modem_connect( modem, service )
 	/* LLL */ syslog( LOG_DEBUG, "<<< %s", resp );
 	if ( strncmp( resp, connectstr, strlen( connectstr )) == 0 ) {
 	    break;
+	}
+	if ( strncmp( resp, nocarrier, strlen( nocarrier )) == 0 ) {
+	    syslog( LOG_ERR, "no carrier connecting to %s", service->s_name );
+	    return( -1 );
 	}
     }
     if ( i == 3 ) {
