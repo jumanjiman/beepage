@@ -16,13 +16,12 @@
 
     int
 parse_content_type( line, type, subtype, attribute, value, sn )
-    char        *line, ***type, ***subtype, ***attribute, ***value;
+    char        *line, **type, **subtype, **attribute, **value;
     SNET        *sn;
 {
     char	*nextline = NULL;
     char	*j, *k;
     char	val_prev = ';';
-
 
     /*
      *		Parse out the subtype
@@ -36,7 +35,7 @@ parse_content_type( line, type, subtype, attribute, value, sn )
     }
 
     *k = '\0';
-    **type = strdup( j );
+    *type = strdup( j );
     *k = '/';
     k++;
 
@@ -51,7 +50,7 @@ parse_content_type( line, type, subtype, attribute, value, sn )
 	return( -1 );
     }
     *j = '\0';
-    **subtype = strdup( k );
+    *subtype = strdup( k );
     *j = ';';
     j++;
     /* 
@@ -92,7 +91,7 @@ parse_content_type( line, type, subtype, attribute, value, sn )
     }
 
     *k = '\0';
-    **attribute = strdup( j );
+    *attribute = strdup( j );
     *k = '=';
     k++;
 
@@ -116,7 +115,7 @@ parse_content_type( line, type, subtype, attribute, value, sn )
     }
     
     *j = '\0';
-    **value = strdup( k );
+    *value = strdup( k );
     *j = val_prev;
 
 
