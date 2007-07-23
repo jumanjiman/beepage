@@ -57,6 +57,7 @@ main( ac, av )
     struct servent	*se;
     SNET		*sn;
     int			verbose = 0, multiple = 0, quiet = 0;
+    int			nsuccess = 0, nfail = 0;
     extern char		*optarg;
     extern int		optind;
 
@@ -251,8 +252,13 @@ authdone:
 	    if ( verbose )	printf( "<<< %s\n", line );
 	    if ( *line != '2' ) {
 		fprintf( stderr, "%s\n", line );
-		exit( EX_NOUSER );
+		nfail++;
+	    } else {
+		nsuccess++;
 	    }
+	}
+	if ( nsuccess == 0 ) {
+	    exit( EX_NOUSER );
 	}
     } else {
 	if ( snet_writef( sn, "PAGE %s\r\n", av[ optind ] ) < 0 ) {
@@ -387,6 +393,9 @@ authdone:
 
     if ( ! quiet ) {
 	printf( "Page queued on %s\n", hostname );
+    }
+    if ( nfail != 0 ) {
+	exit( EX_NOUSER );
     }
     exit( EX_OK );
 }

@@ -54,8 +54,14 @@ Installing beepage:
     ETCDIR (as distributed DESTDIR/etc), e.g.  ETCDIR/users.  See
     beepaged's man page for a description of it's configuration files.
 
-You might be interested in looking at the RSUG home page at
-http://www.umich.edu/~rsug/.
+Modem configuration:
+
+1.  TAP specifies "The standard protocol will be ASCll, with X ON,
+    X OFF either direction, using a 10 bit code (1 start, 7 data,
+    even parity, 1 stop).
+
+2.  For fastest connect times, advanced features of the modem should
+    be disabled.
 
 You may report bugs and get help by sending mail to the developers at
 beepage@umich.edu.  If you're reporting bugs, you MUST use the format
