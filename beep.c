@@ -31,6 +31,7 @@ char			*krb_get_phost();
 
 char			*host = "beepage";
 char			*version = VERSION;
+char			*sender;
 
 int			main ___P(( int, char *[] ));
 
@@ -67,7 +68,7 @@ main( ac, av )
 	prog++;
     }
 
-    while (( c = getopt( ac, av, "Vvqmh:p:" )) != EOF ) {
+    while (( c = getopt( ac, av, "Vvqmh:p:s:" )) != EOF ) {
 	switch ( c ) {
 	case 'V' :	/* virgin */
 	    printf( "%s\n", version );
@@ -90,6 +91,10 @@ main( ac, av )
 	    host = optarg;
 	    break;
 
+	case 's' :	/* sender */
+	    sender = optarg;
+	    break;
+
 	case 'p' :	/* port */
 	    port = htons( atoi( optarg ));
 	    break;
@@ -100,7 +105,7 @@ main( ac, av )
     }
     if ( err || optind == ac ) {
 	fprintf( stderr,
-		"Usage:\t%s [ -v ] [ -h host ] [ -p port ] user message ...\n",
+		"Usage:\t%s [ -v ] [ -h host ] [ -p port ] [ -s sender ] user message ...\n",
 		prog );
 	exit( EX_USAGE );
     }
@@ -210,15 +215,19 @@ main( ac, av )
 	fprintf( stderr, "%s\n", line );
     }
 #endif /* KRB */
-    if (( pw = getpwuid( getuid())) == NULL ) {
-	fprintf( stderr, "%s: who are you?\n", prog );
-	exit( EX_CONFIG );
+    if ( sender == NULL ) {
+	if (( pw = getpwuid( getuid())) == NULL ) {
+	  fprintf( stderr, "%s: who are you?\n", prog );
+	  exit( EX_CONFIG );
+	} else {
+	  sender = pw->pw_name;
+	}
     }
-    if ( snet_writef( sn, "AUTH NONE %s\r\n", pw->pw_name ) < 0 ) {
+    if ( snet_writef( sn, "AUTH NONE %s\r\n", sender ) < 0 ) {
 	perror( "snet_writef" );
 	exit( EX_IOERR );
     }
-    if ( verbose )	printf( ">>> AUTH NONE %s\n", pw->pw_name );
+    if ( verbose )	printf( ">>> AUTH NONE %s\n", sender );
 
     if (( line = snet_getline( sn, NULL )) == NULL ) {
 	perror( "snet_getline" );
